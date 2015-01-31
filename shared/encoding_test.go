@@ -7,7 +7,6 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"errors"
 	"math/big"
 	"testing"
 	"time"
@@ -44,7 +43,7 @@ func TestCert(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	cert, err := genCert("test", true, false, 1, &key.PublicKey, key, nil)
+	cert, err := GenCert("test", false, 1, &key.PublicKey, key, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,25 +60,15 @@ func TestCert(t *testing.T) {
 	}
 }
 
-// Copied from skds/crypto
-func genCert(name string, selfsigned bool, isCa bool, years int,
-	pubKey *ecdsa.PublicKey, privKey *ecdsa.PrivateKey, caCert *x509.Certificate) (*x509.Certificate, error) {
+// Copied from skds/crypto to avoid import cycle
+func GenCert(name string, isCa bool, years int, pubKey *ecdsa.PublicKey,
+	privKey *ecdsa.PrivateKey, caCert *x509.Certificate) (cert *x509.Certificate, err error) {
 
-	if !selfsigned && caCert == nil {
-		return nil, errors.New("Missing CA Cert")
-	}
-
-	// Generate a serial from the time in nanoseconds * a random value from 0 to uint16
 	now := time.Now()
-	serial := new(big.Int).SetInt64(now.UnixNano())
-	mul, err := rand.Int(rand.Reader, new(big.Int).SetInt64(1<<16-1))
-	if err != nil {
-		return nil, err
-	}
-	serial.Mul(serial, mul)
 
 	template := x509.Certificate{
-		SerialNumber: serial,
+		// Serial must be unique - however there's no practical chance of collision here
+		SerialNumber: new(big.Int).SetInt64(now.UnixNano()),
 		Subject: pkix.Name{
 			CommonName: name,
 		},
@@ -92,11 +81,10 @@ func genCert(name string, selfsigned bool, isCa bool, years int,
 	if isCa {
 		template.BasicConstraintsValid = true
 		template.IsCA = true
-		template.MaxPathLen = 1 // To allow future upgrades more seamlessly
+		template.MaxPathLen = 0
 		template.KeyUsage = x509.KeyUsageCertSign
 	}
-
-	if selfsigned {
+	if caCert == nil {
 		caCert = &template
 	}
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, caCert, pubKey, privKey)
