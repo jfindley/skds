@@ -18,7 +18,7 @@ func GenKey() (*ecdsa.PrivateKey, error) {
 	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 }
 
-// FOr self-signed certs, leave caCert nil
+// For self-signed certs, leave caCert nil
 func GenCert(name string, isCa bool, years int, pubKey *ecdsa.PublicKey,
 	privKey *ecdsa.PrivateKey, caCert *x509.Certificate) (cert *x509.Certificate, err error) {
 
