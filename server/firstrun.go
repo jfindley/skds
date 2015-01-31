@@ -3,9 +3,9 @@ package main
 import (
     "os"
 
-    "skds/config"
-    "skds/crypto"
-    "skds/server/db"
+    "github.com/jfindley/skds/config"
+    "github.com/jfindley/skds/crypto"
+    "github.com/jfindley/skds/server/db"
 )
 
 func Setup(cfg *config.Config) (err error) {

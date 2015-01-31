@@ -10,9 +10,9 @@ import (
 	"os"
 	"testing"
 
-	"skds/config"
-	"skds/crypto"
-	"skds/messages"
+	"github.com/jfindley/skds/config"
+	"github.com/jfindley/skds/crypto"
+	"github.com/jfindley/skds/messages"
 )
 
 var testReq = "Hello SKDS"

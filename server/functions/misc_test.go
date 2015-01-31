@@ -4,11 +4,11 @@ import (
     "bytes"
     "testing"
 
-    "skds/config"
-    "skds/crypto"
-    "skds/messages"
-    "skds/server/db"
-    "skds/shared"
+    "github.com/jfindley/skds/config"
+    "github.com/jfindley/skds/crypto"
+    "github.com/jfindley/skds/messages"
+    "github.com/jfindley/skds/server/db"
+    "github.com/jfindley/skds/shared"
 )
 
 func TestgenericFailure(t *testing.T) {

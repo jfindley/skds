@@ -6,10 +6,10 @@ import (
     "net/http"
     "strconv"
 
-    "skds/config"
-    "skds/dictionary"
-    "skds/messages"
-    "skds/server/auth"
+    "github.com/jfindley/skds/config"
+    "github.com/jfindley/skds/dictionary"
+    "github.com/jfindley/skds/messages"
+    "github.com/jfindley/skds/server/auth"
 )
 
 func authRequest(cfg *config.Config, pool *auth.SessionPool, res http.ResponseWriter, req *http.Request,

@@ -18,8 +18,8 @@ import (
 	"strconv"
 	"strings"
 
-	"skds/crypto"
-	"skds/shared"
+	"github.com/jfindley/skds/crypto"
+	"github.com/jfindley/skds/shared"
 )
 
 const (

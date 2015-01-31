@@ -4,10 +4,10 @@ import (
     "bytes"
     "testing"
 
-    "skds/config"
-    "skds/messages"
-    "skds/server/db"
-    "skds/shared"
+    "github.com/jfindley/skds/config"
+    "github.com/jfindley/skds/messages"
+    "github.com/jfindley/skds/server/db"
+    "github.com/jfindley/skds/shared"
 )
 
 func TestKeyList(t *testing.T) {

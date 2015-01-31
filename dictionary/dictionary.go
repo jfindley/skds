@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"skds/config"
-	"skds/messages"
-	"skds/server/auth"
+	"github.com/jfindley/skds/config"
+	"github.com/jfindley/skds/messages"
+	"github.com/jfindley/skds/server/auth"
 
 	admin "skds/admin/functions"
 	server "skds/server/functions"

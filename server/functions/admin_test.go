@@ -4,12 +4,12 @@ import (
     "bytes"
     "testing"
 
-    "skds/config"
-    "skds/crypto"
-    "skds/messages"
-    "skds/server/auth"
-    "skds/server/db"
-    "skds/shared"
+    "github.com/jfindley/skds/config"
+    "github.com/jfindley/skds/crypto"
+    "github.com/jfindley/skds/messages"
+    "github.com/jfindley/skds/server/auth"
+    "github.com/jfindley/skds/server/db"
+    "github.com/jfindley/skds/shared"
 )
 
 func TestAdminPass(t *testing.T) {

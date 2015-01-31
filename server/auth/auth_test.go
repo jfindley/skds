@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"skds/config"
-	"skds/crypto"
-	"skds/server/db"
-	"skds/shared"
+	"github.com/jfindley/skds/config"
+	"github.com/jfindley/skds/crypto"
+	"github.com/jfindley/skds/server/db"
+	"github.com/jfindley/skds/shared"
 )
 
 var (

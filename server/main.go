@@ -6,10 +6,10 @@ import (
     "net/http"
     "runtime"
 
-    "skds/config"
-    "skds/dictionary"
-    "skds/server/auth"
-    "skds/transport"
+    "github.com/jfindley/skds/config"
+    "github.com/jfindley/skds/dictionary"
+    "github.com/jfindley/skds/server/auth"
+    "github.com/jfindley/skds/transport"
 )
 
 func ReadArgs() (cfg config.Config, install bool) {

@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"strings"
 
-	"skds/config"
-	"skds/crypto"
-	"skds/messages"
-	"skds/shared"
+	"github.com/jfindley/skds/config"
+	"github.com/jfindley/skds/crypto"
+	"github.com/jfindley/skds/messages"
+	"github.com/jfindley/skds/shared"
 )
 
 var maxLen = 200

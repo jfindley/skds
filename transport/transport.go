@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"skds/config"
-	"skds/shared"
+	"github.com/jfindley/skds/config"
+	"github.com/jfindley/skds/shared"
 )
 
 var ciphers = []uint16{tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256}

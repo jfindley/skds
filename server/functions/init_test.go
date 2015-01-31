@@ -3,10 +3,10 @@ package functions
 // This sets up the various common parts for the tests in this package
 
 import (
-    "skds/config"
-    "skds/crypto"
-    "skds/server/auth"
-    "skds/server/db"
+    "github.com/jfindley/skds/config"
+    "github.com/jfindley/skds/crypto"
+    "github.com/jfindley/skds/server/auth"
+    "github.com/jfindley/skds/server/db"
 )
 
 var (

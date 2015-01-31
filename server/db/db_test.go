@@ -3,8 +3,8 @@ package db
 import (
     "testing"
 
-    "skds/config"
-    "skds/crypto"
+    "github.com/jfindley/skds/config"
+    "github.com/jfindley/skds/crypto"
 )
 
 var (

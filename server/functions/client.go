@@ -1,11 +1,11 @@
 package functions
 
 import (
-    "skds/config"
-    "skds/messages"
-    "skds/server/auth"
-    "skds/server/db"
-    "skds/shared"
+    "github.com/jfindley/skds/config"
+    "github.com/jfindley/skds/messages"
+    "github.com/jfindley/skds/server/auth"
+    "github.com/jfindley/skds/server/db"
+    "github.com/jfindley/skds/shared"
 )
 
 /*

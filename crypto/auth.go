@@ -10,7 +10,7 @@ import (
 	"io"
 	"math/big"
 
-	"skds/shared"
+	"github.com/jfindley/skds/shared"
 )
 
 const (
