@@ -1,7 +1,9 @@
 SKDS: Secure Key distribution system
 ======
 
-A system for securely distributing secret keys across a large number of systems
+A system for securely distributing secret keys across a large number of systems.
+
+It's still missing some vital components in this public repo, however, so if you found this by accident - thanks for coming, and check back in a week or two.
 
 What is it for?
 -----
