@@ -38,7 +38,8 @@ func NewAdminSession(cfg *config.Config) (err error) {
 	return
 }
 
-func Request(cfg *config.Config, path string, msg messages.Message) (m messages.Message, err error) {
+// We use an empty interface here to allow sending other things than an SKDS message.
+func Request(cfg *config.Config, path string, msg interface{}) (m messages.Message, err error) {
 
 	data, err := json.Marshal(msg)
 	if err != nil {
