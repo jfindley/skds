@@ -12,8 +12,8 @@ import (
 	"github.com/jfindley/skds/messages"
 	"github.com/jfindley/skds/server/auth"
 
-	admin "skds/admin/functions"
-	server "skds/server/functions"
+	admin "github.com/jfindley/skds/admin/functions"
+	server "github.com/jfindley/skds/server/functions"
 )
 
 // The Serverfn takes a pointer to the config object and a decoded message.
