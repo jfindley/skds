@@ -174,12 +174,14 @@ func TestTransport(t *testing.T) {
 
 	// First test that our custom dial+client works correctly
 
-	cfg.Runtime.Client, err = ClientInit(cfg)
+	sess := new(Session)
+
+	err = sess.NewClient(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = cfg.Runtime.Client.Get("http://localhost:8443/test")
+	_, err = sess.Client.Get("http://localhost:8443/test")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -187,18 +189,18 @@ func TestTransport(t *testing.T) {
 	realSig := cfg.Startup.ServerSignature
 	cfg.Startup.ServerSignature = "00000000"
 
-	cfg.Runtime.Client, err = ClientInit(cfg)
+	err = sess.NewClient(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = cfg.Runtime.Client.Get("http://localhost:8443/test")
+	_, err = sess.Client.Get("http://localhost:8443/test")
 	if err == nil {
 		t.Fatal("No error when server certificate changed")
 	}
 
 	cfg.Startup.ServerSignature = realSig
-	cfg.Runtime.Client, err = ClientInit(cfg)
+	err = sess.NewClient(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -211,12 +213,12 @@ func TestTransport(t *testing.T) {
 
 	// Basic new session test
 
-	err = NewClientSession(cfg)
+	err = sess.AuthClient(cfg)
 	if err == nil || err.Error() != "Invalid session key in response" {
 		t.Error("Expected to get: Invalid session key in response, got", err)
 	}
 
-	err = NewAdminSession(cfg)
+	err = sess.AuthAdmin(cfg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -224,7 +226,7 @@ func TestTransport(t *testing.T) {
 	var msg messages.Message
 
 	msg.Admin.Name = "basic"
-	resp, err := Request(cfg, "/test/request", msg)
+	resp, err := sess.Request(cfg, "/test/request", msg)
 	if err != nil {
 		t.Error(err)
 	}
@@ -233,28 +235,28 @@ func TestTransport(t *testing.T) {
 	}
 
 	msg.Admin.Name = "nokey"
-	_, err = Request(cfg, "/test/request", msg)
+	_, err = sess.Request(cfg, "/test/request", msg)
 	if err == nil || err.Error() != "Invalid session key in response" {
 		t.Error("Expected to get: Invalid session key in response, got", err)
 	}
 
 	msg.Admin.Name = "norot"
-	_, err = Request(cfg, "/test/request", msg)
+	_, err = sess.Request(cfg, "/test/request", msg)
 	if err == nil || err.Error() != "Session key not rotated" {
 		t.Error("Expected to get: Session key not rotated, got", err)
 	}
 
-	err = auth(cfg, "/auth/testsig")
+	err = sess.auth(cfg, "/auth/testsig")
 	if err != nil {
 		t.Error(err)
 	}
 
-	_, err = Request(cfg, "/fail", msg)
+	_, err = sess.Request(cfg, "/fail", msg)
 	if err.Error() != "500 Internal Server Error ()" {
 		t.Error("Did not get correct error, got:", err)
 	}
 
-	_, err = Request(cfg, "/failerror", msg)
+	_, err = sess.Request(cfg, "/failerror", msg)
 	if err.Error() != "500 Internal Server Error (Failed)" {
 		t.Error("Did not get correct error, got:", err)
 	}

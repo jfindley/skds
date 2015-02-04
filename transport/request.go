@@ -28,18 +28,18 @@ const (
 	hdrKey     = "X-AUTH-KEY"
 )
 
-func NewClientSession(cfg *config.Config) (err error) {
-	err = auth(cfg, "/auth/client")
+func (s *Session) AuthClient(cfg *config.Config) (err error) {
+	err = s.auth(cfg, "/auth/client")
 	return
 }
 
-func NewAdminSession(cfg *config.Config) (err error) {
-	err = auth(cfg, "/auth/admin")
+func (s *Session) AuthAdmin(cfg *config.Config) (err error) {
+	err = s.auth(cfg, "/auth/admin")
 	return
 }
 
 // We use an empty interface here to allow sending other things than an SKDS message.
-func Request(cfg *config.Config, path string, msg interface{}) (m messages.Message, err error) {
+func (s *Session) Request(cfg *config.Config, path string, msg interface{}) (m messages.Message, err error) {
 
 	data, err := json.Marshal(msg)
 	if err != nil {
@@ -48,7 +48,7 @@ func Request(cfg *config.Config, path string, msg interface{}) (m messages.Messa
 	}
 	cfg.Log(3, "Sending:", fmtData(data))
 
-	mac := crypto.NewMAC(cfg.Runtime.SessionKey, data)
+	mac := crypto.NewMAC(s.SessionKey, data)
 
 	req, err := http.NewRequest("POST", url(cfg.Startup.Address, path), bytes.NewReader(data))
 	if err != nil {
@@ -56,10 +56,10 @@ func Request(cfg *config.Config, path string, msg interface{}) (m messages.Messa
 	}
 	req.Header.Add(hdrEnc, "application/json")
 	req.Header.Add(hdrUA, "SKDS "+cfg.Startup.Version)
-	req.Header.Add(hdrSession, strconv.FormatInt(cfg.Runtime.SessionID, 10))
+	req.Header.Add(hdrSession, strconv.FormatInt(s.SessionID, 10))
 	req.Header.Add(hdrMAC, string(mac))
 
-	resp, err := cfg.Runtime.Client.Do(req)
+	resp, err := s.Client.Do(req)
 	if err != nil {
 		return
 	}
@@ -91,11 +91,11 @@ func Request(cfg *config.Config, path string, msg interface{}) (m messages.Messa
 		err = errors.New("Invalid session key in response")
 		return
 	}
-	if bytes.Compare(newKey, cfg.Runtime.SessionKey) == 0 {
+	if bytes.Compare(newKey, s.SessionKey) == 0 {
 		err = errors.New("Session key not rotated")
 		return
 	}
-	cfg.Runtime.SessionKey = newKey
+	s.SessionKey = newKey
 
 	return
 }
@@ -107,7 +107,7 @@ func url(addr, path string) string {
 	return fmt.Sprintf("http://%s%s", addr, path)
 }
 
-func auth(cfg *config.Config, path string) (err error) {
+func (s *Session) auth(cfg *config.Config, path string) (err error) {
 	msg := new(messages.Message)
 
 	msg.Auth.Name = cfg.Startup.Name
@@ -141,7 +141,7 @@ func auth(cfg *config.Config, path string) (err error) {
 	// As a signed response would likely use the same key as the certificate
 	// we pinned, signing would add very little.
 
-	resp, err := cfg.Runtime.Client.Do(req)
+	resp, err := s.Client.Do(req)
 	if err != nil {
 		return
 	}
@@ -156,12 +156,12 @@ func auth(cfg *config.Config, path string) (err error) {
 	}
 
 	key := []byte(resp.Header.Get(hdrKey))
-	cfg.Runtime.SessionKey = shared.HexDecode(key)
-	if len(cfg.Runtime.SessionKey) == 0 {
+	s.SessionKey = shared.HexDecode(key)
+	if len(s.SessionKey) == 0 {
 		return errors.New("Invalid session key in response")
 	}
 
-	cfg.Runtime.SessionID, err = strconv.ParseInt(resp.Header.Get(hdrSession), 10, 64)
+	s.SessionID, err = strconv.ParseInt(resp.Header.Get(hdrSession), 10, 64)
 	return
 }
 

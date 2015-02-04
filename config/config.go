@@ -13,7 +13,6 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
-	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -40,18 +39,16 @@ type Config struct {
 // Runtime attributes.
 // These should never be written to disk
 type Runtime struct {
-	DB         gorm.DB
-	Log        io.Writer
-	Key        *ecdsa.PrivateKey
-	Cert       *x509.Certificate
-	CA         *x509.CertPool
-	CAKey      *ecdsa.PrivateKey
-	CACert     *x509.Certificate
-	Client     *http.Client
-	Keypair    crypto.Key
-	Password   []byte
-	SessionID  int64
-	SessionKey []byte
+	DB       gorm.DB
+	Log      io.Writer
+	Key      *ecdsa.PrivateKey
+	Cert     *x509.Certificate
+	CA       *x509.CertPool
+	CAKey    *ecdsa.PrivateKey
+	CACert   *x509.Certificate
+	Session  shared.Session
+	Keypair  crypto.Key
+	Password []byte
 }
 
 // Startup attributes.

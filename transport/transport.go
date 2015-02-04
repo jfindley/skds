@@ -24,6 +24,8 @@ var (
 	respTimeout time.Duration = 300 * time.Second
 )
 
+type Session shared.Session
+
 func ServerInit(cfg *config.Config) (*net.Listener, *http.Server, *http.ServeMux, error) {
 	tlsCfg := generate(cfg)
 	tlsSocket, err := tls.Listen("tcp", cfg.Startup.Address, tlsCfg)
@@ -38,7 +40,7 @@ func ServerInit(cfg *config.Config) (*net.Listener, *http.Server, *http.ServeMux
 	return &tlsSocket, &srv, mux, nil
 }
 
-func ClientInit(cfg *config.Config) (*http.Client, error) {
+func (s *Session) NewClient(cfg *config.Config) error {
 	tr := &http.Transport{
 		TLSHandshakeTimeout:   tlsTimeout,
 		ResponseHeaderTimeout: respTimeout,
@@ -48,7 +50,9 @@ func ClientInit(cfg *config.Config) (*http.Client, error) {
 		return customDialer(network, addr, cfg)
 	}
 
-	return &http.Client{Transport: tr}, nil
+	s.Client = &http.Client{Transport: tr}
+
+	return nil
 }
 
 func generate(cfg *config.Config) *tls.Config {
