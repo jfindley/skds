@@ -14,7 +14,7 @@ No input
 func KeyList(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message) (ret int, resp messages.Message) {
     list := make([]messages.Message, 0)
 
-    rows, err := cfg.Runtime.DB.Table("master_secrets").Select("name").Rows()
+    rows, err := cfg.DB.Table("master_secrets").Select("name").Rows()
     if err != nil {
         return genericFailure(cfg, err)
     }
@@ -39,7 +39,7 @@ func KeyListAdmin(cfg *config.Config, authobj *auth.AuthObject, msg messages.Mes
     list := make([]messages.Message, 0)
 
     admin := new(db.Admins)
-    q := cfg.Runtime.DB.Where("name = ?", msg.Admin.Name).First(admin)
+    q := cfg.DB.Where("name = ?", msg.Admin.Name).First(admin)
     if q.RecordNotFound() {
         return namedFailure(404, "No such admin")
     }
@@ -47,7 +47,7 @@ func KeyListAdmin(cfg *config.Config, authobj *auth.AuthObject, msg messages.Mes
         return genericFailure(cfg, q.Error)
     }
 
-    rows, err := cfg.Runtime.DB.Table("master_secrets").Select(
+    rows, err := cfg.DB.Table("master_secrets").Select(
         "master_secrets.name").Where(
         "group_secrets.gid = ? or admin_secrets.uid = ?", admin.Gid, admin.Id).Joins(
         "left join group_secrets on master_secrets.id = group_secrets.sid left join admin_secrets on master_secrets.id = admin_secrets.sid").Rows()
@@ -75,7 +75,7 @@ func KeyListClient(cfg *config.Config, authobj *auth.AuthObject, msg messages.Me
     list := make([]messages.Message, 0)
 
     client := new(db.Clients)
-    q := cfg.Runtime.DB.Where("name = ?", msg.Client.Name).First(client)
+    q := cfg.DB.Where("name = ?", msg.Client.Name).First(client)
     if q.RecordNotFound() {
         return namedFailure(404, "No such client")
     }
@@ -83,7 +83,7 @@ func KeyListClient(cfg *config.Config, authobj *auth.AuthObject, msg messages.Me
         return genericFailure(cfg, q.Error)
     }
 
-    rows, err := cfg.Runtime.DB.Table("master_secrets").Select(
+    rows, err := cfg.DB.Table("master_secrets").Select(
         "master_secrets.name, group_secrets.path, client_secrets.path").Where(
         "group_secrets.gid = ? or client_secrets.uid = ?", client.Gid, client.Id).Joins(
         "left join group_secrets on master_secrets.id = group_secrets.sid left join client_secrets on master_secrets.id = client_secrets.sid").Rows()
@@ -126,7 +126,7 @@ func KeyListGroup(cfg *config.Config, authobj *auth.AuthObject, msg messages.Mes
         return errorFailure(ret, err)
     }
 
-    rows, err := cfg.Runtime.DB.Table("master_secrets").Where(
+    rows, err := cfg.DB.Table("master_secrets").Where(
         "group_secrets.gid = ?", group.Id).Select(
         "master_secrets.name").Joins(
         "left join group_secrets on master_secrets.id = group_secrets.sid").Rows()
@@ -152,7 +152,7 @@ Client.Name => client name
 */
 func KeyPubClient(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message) (ret int, resp messages.Message) {
     client := new(db.Clients)
-    q := cfg.Runtime.DB.Where("name = ?", msg.Client.Name).First(client)
+    q := cfg.DB.Where("name = ?", msg.Client.Name).First(client)
     if q.RecordNotFound() {
         return namedFailure(404, "No such client")
     }
@@ -169,7 +169,7 @@ No input
 */
 func KeyPubAdmin(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message) (ret int, resp messages.Message) {
     admin := new(db.Admins)
-    q := cfg.Runtime.DB.Where("name = ?", msg.Admin.Name).First(admin)
+    q := cfg.DB.Where("name = ?", msg.Admin.Name).First(admin)
     if q.RecordNotFound() {
         return namedFailure(404, "No such admin")
     }
@@ -186,7 +186,7 @@ No input
 */
 func KeySuper(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message) (ret int, resp messages.Message) {
     group := new(db.Groups)
-    q := cfg.Runtime.DB.First(group, config.SuperGid)
+    q := cfg.DB.First(group, config.SuperGid)
     if q.RecordNotFound() || q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
@@ -202,7 +202,7 @@ Key.Key => unique encryption key for payload encrypted with the supergroup pubke
 Key.Userkey (only required if called by non-super admin) => copy of above key, encrypted with admin local key
 */
 func KeyNew(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message) (ret int, resp messages.Message) {
-    tx := cfg.Runtime.DB.Begin()
+    tx := cfg.DB.Begin()
     if tx.Error != nil {
         return genericFailure(cfg, tx.Error)
     }
@@ -276,7 +276,7 @@ Key.Name => name
 This can be called by a non-super admin, but requires that a non-superadmin has an AdminSecrets entry for that key.
 */
 func KeyDel(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message) (ret int, resp messages.Message) {
-    tx := cfg.Runtime.DB.Begin()
+    tx := cfg.DB.Begin()
     if tx.Error != nil {
         return genericFailure(cfg, tx.Error)
     }
@@ -344,7 +344,7 @@ Same access rules apply as for KeyDel
 func KeyUpdate(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message) (ret int, resp messages.Message) {
     secret := new(db.MasterSecrets)
 
-    q := cfg.Runtime.DB.Where("name = ?", msg.Key.Name).First(secret)
+    q := cfg.DB.Where("name = ?", msg.Key.Name).First(secret)
     if q.RecordNotFound() {
         return namedFailure(404, "Secret not found")
         return namedFailure(404, "Secret not found")
@@ -354,14 +354,14 @@ func KeyUpdate(cfg *config.Config, authobj *auth.AuthObject, msg messages.Messag
 
     if !authobj.Super {
         adminSecret := new(db.AdminSecrets)
-        q := cfg.Runtime.DB.Where("Sid = ?", secret.Id).First(adminSecret)
+        q := cfg.DB.Where("Sid = ?", secret.Id).First(adminSecret)
         if q.RecordNotFound() {
             return namedFailure(403, "You do not have access to this secret")
         }
     }
 
     secret.Secret = shared.HexEncode(msg.Key.Secret)
-    q = cfg.Runtime.DB.Save(secret)
+    q = cfg.DB.Save(secret)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
@@ -416,7 +416,7 @@ func KeyAssignAdmin(cfg *config.Config, authobj *auth.AuthObject, msg messages.M
         return namedFailure(400, "No secret provided")
     }
 
-    q := cfg.Runtime.DB.Where("name = ?", msg.Admin.Name).First(admin)
+    q := cfg.DB.Where("name = ?", msg.Admin.Name).First(admin)
     if q.RecordNotFound() {
         return namedFailure(404, "Admin not found")
     } else if q.Error != nil {
@@ -427,7 +427,7 @@ func KeyAssignAdmin(cfg *config.Config, authobj *auth.AuthObject, msg messages.M
         return namedFailure(400, "Cannot assign a key to a superadmin")
     }
 
-    q = cfg.Runtime.DB.Where("name = ?", msg.Key.Name).First(secret)
+    q = cfg.DB.Where("name = ?", msg.Key.Name).First(secret)
     if q.RecordNotFound() {
         return namedFailure(404, "Secret not found")
     } else if q.Error != nil {
@@ -438,7 +438,7 @@ func KeyAssignAdmin(cfg *config.Config, authobj *auth.AuthObject, msg messages.M
     adminSecret.Sid = secret.Id
     adminSecret.Uid = admin.Id
 
-    q = cfg.Runtime.DB.Create(adminSecret)
+    q = cfg.DB.Create(adminSecret)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
@@ -461,14 +461,14 @@ func KeyAssignClient(cfg *config.Config, authobj *auth.AuthObject, msg messages.
         return namedFailure(400, "No secret provided")
     }
 
-    q := cfg.Runtime.DB.Where("name = ?", msg.Client.Name).First(client)
+    q := cfg.DB.Where("name = ?", msg.Client.Name).First(client)
     if q.RecordNotFound() {
         return namedFailure(404, "Client not found")
     } else if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
 
-    q = cfg.Runtime.DB.Where("name = ?", msg.Key.Name).First(secret)
+    q = cfg.DB.Where("name = ?", msg.Key.Name).First(secret)
     if q.RecordNotFound() {
         return namedFailure(404, "Secret not found")
     } else if q.Error != nil {
@@ -479,7 +479,7 @@ func KeyAssignClient(cfg *config.Config, authobj *auth.AuthObject, msg messages.
     clientSecret.Sid = secret.Id
     clientSecret.Uid = client.Id
 
-    q = cfg.Runtime.DB.Create(clientSecret)
+    q = cfg.DB.Create(clientSecret)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
@@ -507,7 +507,7 @@ func KeyAssignGroup(cfg *config.Config, authobj *auth.AuthObject, msg messages.M
     secret := new(db.MasterSecrets)
     groupSecret := new(db.GroupSecrets)
 
-    q := cfg.Runtime.DB.Where("name = ?", msg.Key.Name).First(secret)
+    q := cfg.DB.Where("name = ?", msg.Key.Name).First(secret)
     if q.RecordNotFound() {
         return namedFailure(404, "Secret not found")
     } else if q.Error != nil {
@@ -518,7 +518,7 @@ func KeyAssignGroup(cfg *config.Config, authobj *auth.AuthObject, msg messages.M
     groupSecret.Sid = secret.Id
     groupSecret.Gid = group.Id
 
-    q = cfg.Runtime.DB.Create(groupSecret)
+    q = cfg.DB.Create(groupSecret)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
@@ -536,7 +536,7 @@ func KeyRemoveAdmin(cfg *config.Config, authobj *auth.AuthObject, msg messages.M
     secret := new(db.MasterSecrets)
     adminSecret := new(db.AdminSecrets)
 
-    q := cfg.Runtime.DB.Where("name = ?", msg.Admin.Name).First(admin)
+    q := cfg.DB.Where("name = ?", msg.Admin.Name).First(admin)
     if q.RecordNotFound() {
         return namedFailure(404, "Admin not found")
     } else if q.Error != nil {
@@ -547,14 +547,14 @@ func KeyRemoveAdmin(cfg *config.Config, authobj *auth.AuthObject, msg messages.M
         return namedFailure(400, "Cannot remove a key from a superadmin")
     }
 
-    q = cfg.Runtime.DB.Where("name = ?", msg.Key.Name).First(secret)
+    q = cfg.DB.Where("name = ?", msg.Key.Name).First(secret)
     if q.RecordNotFound() {
         return namedFailure(404, "Secret not found")
     } else if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
 
-    q = cfg.Runtime.DB.Where("sid = ? and uid = ?", secret.Id, admin.Id).Delete(adminSecret)
+    q = cfg.DB.Where("sid = ? and uid = ?", secret.Id, admin.Id).Delete(adminSecret)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
@@ -572,21 +572,21 @@ func KeyRemoveClient(cfg *config.Config, authobj *auth.AuthObject, msg messages.
     secret := new(db.MasterSecrets)
     clientSecret := new(db.ClientSecrets)
 
-    q := cfg.Runtime.DB.Where("name = ?", msg.Client.Name).First(client)
+    q := cfg.DB.Where("name = ?", msg.Client.Name).First(client)
     if q.RecordNotFound() {
         return namedFailure(404, "Client not found")
     } else if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
 
-    q = cfg.Runtime.DB.Where("name = ?", msg.Key.Name).First(secret)
+    q = cfg.DB.Where("name = ?", msg.Key.Name).First(secret)
     if q.RecordNotFound() {
         return namedFailure(404, "Secret not found")
     } else if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
 
-    q = cfg.Runtime.DB.Where("sid = ? and uid = ?", secret.Id, client.Id).Delete(clientSecret)
+    q = cfg.DB.Where("sid = ? and uid = ?", secret.Id, client.Id).Delete(clientSecret)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
@@ -609,14 +609,14 @@ func KeyRemoveGroup(cfg *config.Config, authobj *auth.AuthObject, msg messages.M
     secret := new(db.MasterSecrets)
     groupSecret := new(db.GroupSecrets)
 
-    q := cfg.Runtime.DB.Where("name = ?", msg.Key.Name).First(secret)
+    q := cfg.DB.Where("name = ?", msg.Key.Name).First(secret)
     if q.RecordNotFound() {
         return namedFailure(404, "Secret not found")
     } else if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
 
-    q = cfg.Runtime.DB.Where("sid = ? and gid = ?", secret.Id, group.Id).Delete(groupSecret)
+    q = cfg.DB.Where("sid = ? and gid = ?", secret.Id, group.Id).Delete(groupSecret)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }

@@ -16,17 +16,17 @@ func TestKeyList(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     secret := new(db.MasterSecrets)
     secret.Name = "test secret 1"
 
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     secret = new(db.MasterSecrets)
     secret.Name = "test secret 2"
 
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     ret, resp := KeyList(cfg, authobj, msg)
     if ret != 0 || resp.Response != "OK" {
@@ -43,35 +43,35 @@ func TestKeyListAdmin(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     admin := new(db.Admins)
     admin.Name = "test admin"
     admin.Gid = 10
-    cfg.Runtime.DB.Create(admin)
+    cfg.DB.Create(admin)
 
     secret := new(db.MasterSecrets)
     groupSecret := new(db.GroupSecrets)
     adminSecret := new(db.AdminSecrets)
 
     secret.Name = "test secret 1"
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     groupSecret.Gid = admin.Gid
     groupSecret.Sid = secret.Id
-    cfg.Runtime.DB.Create(groupSecret)
+    cfg.DB.Create(groupSecret)
 
     secret = new(db.MasterSecrets)
     secret.Name = "test secret 2"
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     adminSecret.Uid = admin.Id
     adminSecret.Sid = secret.Id
-    cfg.Runtime.DB.Create(adminSecret)
+    cfg.DB.Create(adminSecret)
 
     secret = new(db.MasterSecrets)
     secret.Name = "test secret 3"
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     msg.Admin.Name = admin.Name
 
@@ -100,37 +100,37 @@ func TestKeyListClient(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     client := new(db.Clients)
     client.Name = "test client"
     client.Gid = 10
-    cfg.Runtime.DB.Create(client)
+    cfg.DB.Create(client)
 
     secret := new(db.MasterSecrets)
     groupSecret := new(db.GroupSecrets)
     clientSecret := new(db.ClientSecrets)
 
     secret.Name = "test secret 1"
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     groupSecret.Gid = client.Gid
     groupSecret.Sid = secret.Id
     groupSecret.Path = "/group/path"
-    cfg.Runtime.DB.Create(groupSecret)
+    cfg.DB.Create(groupSecret)
 
     secret = new(db.MasterSecrets)
     secret.Name = "test secret 2"
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     clientSecret.Uid = client.Id
     clientSecret.Sid = secret.Id
     clientSecret.Path = "/client/path"
-    cfg.Runtime.DB.Create(clientSecret)
+    cfg.DB.Create(clientSecret)
 
     secret = new(db.MasterSecrets)
     secret.Name = "test secret 3"
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     msg.Client.Name = client.Name
 
@@ -159,31 +159,31 @@ func TestKeyListGroup(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     group := new(db.Groups)
     group.Name = "test group"
     group.Kind = "client"
-    cfg.Runtime.DB.Create(group)
+    cfg.DB.Create(group)
 
     client := new(db.Clients)
     client.Name = "test client"
     client.Gid = group.Id
-    cfg.Runtime.DB.Create(client)
+    cfg.DB.Create(client)
 
     secret := new(db.MasterSecrets)
     groupSecret := new(db.GroupSecrets)
 
     secret.Name = "test secret 1"
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     groupSecret.Gid = client.Gid
     groupSecret.Sid = secret.Id
-    cfg.Runtime.DB.Create(groupSecret)
+    cfg.DB.Create(groupSecret)
 
     secret = new(db.MasterSecrets)
     secret.Name = "test secret 2"
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     msg.Client.Name = client.Name
     msg.Client.Group = group.Name
@@ -208,7 +208,7 @@ func TestKeyPubClient(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     key := []byte("test pub key")
 
@@ -216,7 +216,7 @@ func TestKeyPubClient(t *testing.T) {
     client.Name = "test client"
     client.Pubkey = shared.HexEncode(key)
 
-    cfg.Runtime.DB.Create(client)
+    cfg.DB.Create(client)
 
     msg.Client.Name = client.Name
 
@@ -236,7 +236,7 @@ func TestKeyPubAdmin(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     key := []byte("test pub key")
 
@@ -244,7 +244,7 @@ func TestKeyPubAdmin(t *testing.T) {
     admin.Name = "test admin"
     admin.Pubkey = shared.HexEncode(key)
 
-    cfg.Runtime.DB.Create(admin)
+    cfg.DB.Create(admin)
 
     msg.Admin.Name = admin.Name
 
@@ -264,12 +264,12 @@ func TestKeySuper(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     key := []byte("test pub key")
 
     group := new(db.Groups)
-    cfg.Runtime.DB.First(group, config.SuperGid).Update("PubKey", shared.HexEncode(key))
+    cfg.DB.First(group, config.SuperGid).Update("PubKey", shared.HexEncode(key))
 
     ret, resp := KeySuper(cfg, authobj, msg)
     if ret != 0 || resp.Response != "OK" {
@@ -286,7 +286,7 @@ func TestKeyNew(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     key := []byte("test key")
     enc := []byte("test secret")
@@ -303,8 +303,8 @@ func TestKeyNew(t *testing.T) {
     secret := new(db.MasterSecrets)
     groupKey := new(db.GroupSecrets)
 
-    cfg.Runtime.DB.First(secret)
-    cfg.Runtime.DB.First(groupKey)
+    cfg.DB.First(secret)
+    cfg.DB.First(groupKey)
 
     if secret.Name != msg.Key.Name {
         t.Error("Secret has the wrong name")
@@ -326,7 +326,7 @@ func TestKeyDel(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     secret := new(db.MasterSecrets)
     adminSecret := new(db.AdminSecrets)
@@ -341,7 +341,7 @@ func TestKeyDel(t *testing.T) {
         t.Fatal("Bad result :", ret, resp.Response)
     }
 
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     authobj.Super = false
 
@@ -355,31 +355,31 @@ func TestKeyDel(t *testing.T) {
     adminSecret.Sid = secret.Id
     clientSecret.Sid = secret.Id
     groupSecret.Sid = secret.Id
-    cfg.Runtime.DB.Create(adminSecret)
-    cfg.Runtime.DB.Create(clientSecret)
-    cfg.Runtime.DB.Create(groupSecret)
+    cfg.DB.Create(adminSecret)
+    cfg.DB.Create(clientSecret)
+    cfg.DB.Create(groupSecret)
 
     ret, resp = KeyDel(cfg, authobj, msg)
     if ret != 0 || resp.Response != "OK" {
         t.Fatal("Bad result :", ret, resp.Response)
     }
 
-    q := cfg.Runtime.DB.First(secret, secret.Id)
+    q := cfg.DB.First(secret, secret.Id)
     if !q.RecordNotFound() {
         t.Error("Secret not deleted")
     }
 
-    q = cfg.Runtime.DB.First(adminSecret, secret.Id)
+    q = cfg.DB.First(adminSecret, secret.Id)
     if !q.RecordNotFound() {
         t.Error("Admin secret not deleted")
     }
 
-    q = cfg.Runtime.DB.First(clientSecret, secret.Id)
+    q = cfg.DB.First(clientSecret, secret.Id)
     if !q.RecordNotFound() {
         t.Error("Client secret not deleted")
     }
 
-    q = cfg.Runtime.DB.First(groupSecret, secret.Id)
+    q = cfg.DB.First(groupSecret, secret.Id)
     if !q.RecordNotFound() {
         t.Error("Group secret not deleted")
     }
@@ -391,7 +391,7 @@ func TestKeyUpdate(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     secret := new(db.MasterSecrets)
 
@@ -401,7 +401,7 @@ func TestKeyUpdate(t *testing.T) {
     }
 
     secret.Name = "Test secret"
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     msg.Key.Name = secret.Name
     msg.Key.Secret = []byte("testing payload")
@@ -420,7 +420,7 @@ func TestKeyUpdate(t *testing.T) {
         t.Fatal("Bad result :", ret, resp.Response)
     }
 
-    cfg.Runtime.DB.First(secret)
+    cfg.DB.First(secret)
 
     if bytes.Compare(msg.Key.Secret, shared.HexDecode(secret.Secret)) != 0 {
         t.Error("Secret not updated correctly")
@@ -433,7 +433,7 @@ func TestKeyPubGroup(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     msg.Admin.Group = "test admin group"
 
@@ -442,7 +442,7 @@ func TestKeyPubGroup(t *testing.T) {
     group.Kind = "admin"
     group.PubKey = shared.HexEncode([]byte("pub"))
 
-    cfg.Runtime.DB.Create(group)
+    cfg.DB.Create(group)
 
     ret, resp := KeyPubGroup(cfg, authobj, msg)
     if ret != 0 || resp.Response != "OK" {
@@ -460,7 +460,7 @@ func TestKeyPubGroup(t *testing.T) {
     msg.Admin.Group = ""
     msg.Client.Group = group.Name
 
-    cfg.Runtime.DB.Create(group)
+    cfg.DB.Create(group)
 
     ret, resp = KeyPubGroup(cfg, authobj, msg)
     if ret != 0 || resp.Response != "OK" {
@@ -477,7 +477,7 @@ func TestKeyPrivGroup(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     msg.Admin.Group = "test admin group"
 
@@ -486,7 +486,7 @@ func TestKeyPrivGroup(t *testing.T) {
     group.Kind = "admin"
     group.PrivKey = shared.HexEncode([]byte("priv"))
 
-    cfg.Runtime.DB.Create(group)
+    cfg.DB.Create(group)
 
     ret, resp := KeyPrivGroup(cfg, authobj, msg)
     if ret != 0 || resp.Response != "OK" {
@@ -504,7 +504,7 @@ func TestKeyPrivGroup(t *testing.T) {
     msg.Admin.Group = ""
     msg.Client.Group = group.Name
 
-    cfg.Runtime.DB.Create(group)
+    cfg.DB.Create(group)
 
     ret, resp = KeyPrivGroup(cfg, authobj, msg)
     if ret != 0 || resp.Response != "OK" {
@@ -521,7 +521,7 @@ func TestKeyAssignAdmin(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     ret, resp := KeyAssignAdmin(cfg, authobj, msg)
     if ret != 400 || resp.Response != "No secret provided" {
@@ -544,7 +544,7 @@ func TestKeyAssignAdmin(t *testing.T) {
     admin.Gid = config.SuperGid
     admin.Name = msg.Admin.Name
 
-    cfg.Runtime.DB.Create(admin)
+    cfg.DB.Create(admin)
 
     ret, resp = KeyAssignAdmin(cfg, authobj, msg)
     if ret != 400 || resp.Response != "Cannot assign a key to a superadmin" {
@@ -552,7 +552,7 @@ func TestKeyAssignAdmin(t *testing.T) {
     }
 
     admin.Gid = config.DefAdminGid
-    cfg.Runtime.DB.Save(admin)
+    cfg.DB.Save(admin)
 
     ret, resp = KeyAssignAdmin(cfg, authobj, msg)
     if ret != 404 || resp.Response != "Secret not found" {
@@ -561,7 +561,7 @@ func TestKeyAssignAdmin(t *testing.T) {
 
     secret.Name = msg.Key.Name
 
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     ret, resp = KeyAssignAdmin(cfg, authobj, msg)
     if ret != 0 || resp.Response != "OK" {
@@ -575,7 +575,7 @@ func TestKeyAssignClient(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     ret, resp := KeyAssignClient(cfg, authobj, msg)
     if ret != 400 || resp.Response != "No secret provided" {
@@ -597,7 +597,7 @@ func TestKeyAssignClient(t *testing.T) {
 
     client.Name = msg.Client.Name
 
-    cfg.Runtime.DB.Create(client)
+    cfg.DB.Create(client)
 
     ret, resp = KeyAssignClient(cfg, authobj, msg)
     if ret != 404 || resp.Response != "Secret not found" {
@@ -606,7 +606,7 @@ func TestKeyAssignClient(t *testing.T) {
 
     secret.Name = msg.Key.Name
 
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     ret, resp = KeyAssignClient(cfg, authobj, msg)
     if ret != 0 || resp.Response != "OK" {
@@ -620,7 +620,7 @@ func TestKeyAssignGroup(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     ret, resp := KeyAssignGroup(cfg, authobj, msg)
     if ret != 400 || resp.Response != "No secret provided" {
@@ -636,7 +636,7 @@ func TestKeyAssignGroup(t *testing.T) {
     msg.Key.Name = "test secret"
     group.Name = msg.Admin.Group
     group.Kind = "admin"
-    cfg.Runtime.DB.Create(group)
+    cfg.DB.Create(group)
 
     ret, resp = KeyAssignGroup(cfg, authobj, msg)
     if ret != 404 || resp.Response != "Secret not found" {
@@ -645,7 +645,7 @@ func TestKeyAssignGroup(t *testing.T) {
 
     secret.Name = msg.Key.Name
 
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     ret, resp = KeyAssignGroup(cfg, authobj, msg)
     if ret != 0 || resp.Response != "OK" {
@@ -655,7 +655,7 @@ func TestKeyAssignGroup(t *testing.T) {
     group = new(db.Groups)
     group.Name = "test client group"
     group.Kind = "client"
-    cfg.Runtime.DB.Create(group)
+    cfg.DB.Create(group)
 
     msg.Admin.Group = ""
     msg.Client.Group = group.Name
@@ -672,7 +672,7 @@ func TestKeyRemoveAdmin(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     admin := new(db.Admins)
     secret := new(db.MasterSecrets)
@@ -691,7 +691,7 @@ func TestKeyRemoveAdmin(t *testing.T) {
     admin.Gid = config.SuperGid
     admin.Name = msg.Admin.Name
 
-    cfg.Runtime.DB.Create(admin)
+    cfg.DB.Create(admin)
 
     ret, resp = KeyRemoveAdmin(cfg, authobj, msg)
     if ret != 400 || resp.Response != "Cannot remove a key from a superadmin" {
@@ -699,7 +699,7 @@ func TestKeyRemoveAdmin(t *testing.T) {
     }
 
     admin.Gid = config.DefAdminGid
-    cfg.Runtime.DB.Save(admin)
+    cfg.DB.Save(admin)
 
     ret, resp = KeyRemoveAdmin(cfg, authobj, msg)
     if ret != 404 || resp.Response != "Secret not found" {
@@ -708,18 +708,18 @@ func TestKeyRemoveAdmin(t *testing.T) {
 
     secret.Name = msg.Key.Name
 
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     adminSecret.Sid = secret.Id
     adminSecret.Uid = admin.Id
-    cfg.Runtime.DB.Create(adminSecret)
+    cfg.DB.Create(adminSecret)
 
     ret, resp = KeyRemoveAdmin(cfg, authobj, msg)
     if ret != 0 || resp.Response != "OK" {
         t.Fatal("Bad result :", ret, resp.Response)
     }
 
-    q := cfg.Runtime.DB.First(adminSecret)
+    q := cfg.DB.First(adminSecret)
     if !q.RecordNotFound() {
         t.Fatal("Secret access not removed")
     }
@@ -731,7 +731,7 @@ func TestKeyRemoveClient(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     client := new(db.Clients)
     secret := new(db.MasterSecrets)
@@ -749,9 +749,9 @@ func TestKeyRemoveClient(t *testing.T) {
 
     client.Name = msg.Client.Name
 
-    cfg.Runtime.DB.Create(client)
+    cfg.DB.Create(client)
 
-    cfg.Runtime.DB.Save(client)
+    cfg.DB.Save(client)
 
     ret, resp = KeyRemoveClient(cfg, authobj, msg)
     if ret != 404 || resp.Response != "Secret not found" {
@@ -760,18 +760,18 @@ func TestKeyRemoveClient(t *testing.T) {
 
     secret.Name = msg.Key.Name
 
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     clientSecret.Sid = secret.Id
     clientSecret.Uid = client.Id
-    cfg.Runtime.DB.Create(clientSecret)
+    cfg.DB.Create(clientSecret)
 
     ret, resp = KeyRemoveClient(cfg, authobj, msg)
     if ret != 0 || resp.Response != "OK" {
         t.Fatal("Bad result :", ret, resp.Response)
     }
 
-    q := cfg.Runtime.DB.First(clientSecret)
+    q := cfg.DB.First(clientSecret)
     if !q.RecordNotFound() {
         t.Fatal("Secret access not removed")
     }
@@ -783,7 +783,7 @@ func TestKeyRemoveGroup(t *testing.T) {
     if err != nil {
         t.Fatal(err)
     }
-    defer cfg.Runtime.DB.Close()
+    defer cfg.DB.Close()
 
     msg.Admin.Group = "test admin group"
 
@@ -799,7 +799,7 @@ func TestKeyRemoveGroup(t *testing.T) {
     msg.Key.Name = "test secret"
     group.Name = msg.Admin.Group
     group.Kind = "admin"
-    cfg.Runtime.DB.Create(group)
+    cfg.DB.Create(group)
 
     ret, resp = KeyRemoveGroup(cfg, authobj, msg)
     if ret != 404 || resp.Response != "Secret not found" {
@@ -808,18 +808,18 @@ func TestKeyRemoveGroup(t *testing.T) {
 
     secret.Name = msg.Key.Name
 
-    cfg.Runtime.DB.Create(secret)
+    cfg.DB.Create(secret)
 
     groupSecret.Gid = group.Id
     groupSecret.Sid = secret.Id
-    cfg.Runtime.DB.Create(groupSecret)
+    cfg.DB.Create(groupSecret)
 
     ret, resp = KeyRemoveGroup(cfg, authobj, msg)
     if ret != 0 || resp.Response != "OK" {
         t.Fatal("Bad result :", ret, resp.Response)
     }
 
-    q := cfg.Runtime.DB.First(groupSecret)
+    q := cfg.DB.First(groupSecret)
     if !q.RecordNotFound() {
         t.Fatal("Secret access not removed")
     }
@@ -829,11 +829,11 @@ func TestKeyRemoveGroup(t *testing.T) {
 
     group.Name = "test client group"
     group.Kind = "client"
-    cfg.Runtime.DB.Create(group)
+    cfg.DB.Create(group)
 
     groupSecret.Gid = group.Id
     groupSecret.Sid = secret.Id
-    cfg.Runtime.DB.Create(groupSecret)
+    cfg.DB.Create(groupSecret)
 
     msg.Admin.Group = ""
     msg.Client.Group = group.Name
@@ -843,7 +843,7 @@ func TestKeyRemoveGroup(t *testing.T) {
         t.Fatal("Bad result :", ret, resp.Response)
     }
 
-    q = cfg.Runtime.DB.First(groupSecret)
+    q = cfg.DB.First(groupSecret)
     if !q.RecordNotFound() {
         t.Fatal("Secret access not removed")
     }

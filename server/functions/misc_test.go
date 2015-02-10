@@ -26,7 +26,7 @@ func TestdbGroupFromMessage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cfg.Runtime.DB.Close()
+	defer cfg.DB.Close()
 
 	_, ret, err := dbGroupFromMessage(cfg, msg)
 	if ret != 400 || err.Error() != "Please specify a group name" {
@@ -50,7 +50,7 @@ func TestdbGroupFromMessage(t *testing.T) {
 	group := new(db.Groups)
 	group.Name = msg.Admin.Group
 	group.Kind = "admin"
-	cfg.Runtime.DB.Create(group)
+	cfg.DB.Create(group)
 
 	retGroup, ret, err := dbGroupFromMessage(cfg, msg)
 	if ret != 0 || err != nil {
@@ -64,7 +64,7 @@ func TestdbGroupFromMessage(t *testing.T) {
 	group = new(db.Groups)
 	group.Name = "test client group"
 	group.Kind = "client"
-	cfg.Runtime.DB.Create(group)
+	cfg.DB.Create(group)
 
 	msg.Client.Group = group.Name
 	msg.Admin.Group = ""
@@ -113,7 +113,7 @@ func TestSetup(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cfg.Runtime.DB.Close()
+	defer cfg.DB.Close()
 
 	superKey := new(crypto.Key)
 	localKey := new(crypto.Key)
@@ -140,8 +140,8 @@ func TestSetup(t *testing.T) {
 
 	admin := new(db.Admins)
 	group := new(db.Groups)
-	cfg.Runtime.DB.First(admin, authobj.UID)
-	cfg.Runtime.DB.First(group, config.SuperGid)
+	cfg.DB.First(admin, authobj.UID)
+	cfg.DB.First(group, config.SuperGid)
 
 	if bytes.Compare(shared.HexDecode(admin.GroupKey), msg.Key.Key) != 0 {
 		t.Error("Stored value does not match input")

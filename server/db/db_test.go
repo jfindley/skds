@@ -32,7 +32,7 @@ func TestInitDB(t *testing.T) {
     }
 
     for name, table := range tableList {
-        if !cfg.Runtime.DB.HasTable(table) {
+        if !cfg.DB.HasTable(table) {
             t.Error("Table missing:", name)
         }
     }
@@ -45,7 +45,7 @@ func TestCreateDefaults(t *testing.T) {
     }
 
     group := new(Groups)
-    q := cfg.Runtime.DB.Where("name = ? and kind = ?", "default", "client").First(group)
+    q := cfg.DB.Where("name = ? and kind = ?", "default", "client").First(group)
     if q.Error != nil {
         t.Error(q.Error)
     }
@@ -54,7 +54,7 @@ func TestCreateDefaults(t *testing.T) {
     }
 
     group = new(Groups)
-    q = cfg.Runtime.DB.Where("name = ? and kind = ?", "default", "admin").First(group)
+    q = cfg.DB.Where("name = ? and kind = ?", "default", "admin").First(group)
     if q.Error != nil {
         t.Error(q.Error)
     }
@@ -63,7 +63,7 @@ func TestCreateDefaults(t *testing.T) {
     }
 
     group = new(Groups)
-    q = cfg.Runtime.DB.Where("name = ? and kind = ?", "super", "admin").First(group)
+    q = cfg.DB.Where("name = ? and kind = ?", "super", "admin").First(group)
     if q.Error != nil {
         t.Error(q.Error)
     }
@@ -72,7 +72,7 @@ func TestCreateDefaults(t *testing.T) {
     }
 
     admin := new(Admins)
-    q = cfg.Runtime.DB.Where("name = ?", "admin").First(admin)
+    q = cfg.DB.Where("name = ?", "admin").First(admin)
     if q.Error != nil {
         t.Error(q.Error)
     }

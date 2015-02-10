@@ -53,13 +53,13 @@ func init() {
 	client.Name = "client"
 	client.Password = cpass
 	client.Gid = config.DefClientGid
-	cfg.Runtime.DB.Create(client)
+	cfg.DB.Create(client)
 
 	admin := new(db.Admins)
 	admin.Name = "std_admin"
 	admin.Password = apass
 	admin.Gid = config.DefAdminGid
-	cfg.Runtime.DB.Create(admin)
+	cfg.DB.Create(admin)
 }
 
 func TestAdmin(t *testing.T) {

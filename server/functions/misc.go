@@ -40,7 +40,7 @@ func dbGroupFromMessage(cfg *config.Config, msg messages.Message) (db.Groups, in
         name = msg.Client.Group
     }
 
-    q := cfg.Runtime.DB.Where("name = ? and kind = ?", name, kind).First(&group)
+    q := cfg.DB.Where("name = ? and kind = ?", name, kind).First(&group)
     if q.RecordNotFound() {
         return group, 404, errors.New("Group not found")
     } else if q.Error != nil {
@@ -80,7 +80,7 @@ func Setup(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message) (
     admin := new(db.Admins)
     group := new(db.Groups)
 
-    tx := cfg.Runtime.DB.Begin()
+    tx := cfg.DB.Begin()
     if tx.Error != nil {
         return genericFailure(cfg, tx.Error)
     }

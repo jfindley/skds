@@ -15,7 +15,7 @@ func ClientGetKey(cfg *config.Config, authobj *auth.AuthObject, msg messages.Mes
     list := make([]messages.Message, 0)
 
     if authobj.GID != config.DefClientGid {
-        rows, err := cfg.Runtime.DB.Table("group_secrets").Where("group_secrets.gid = ?", authobj.GID).Select(
+        rows, err := cfg.DB.Table("group_secrets").Where("group_secrets.gid = ?", authobj.GID).Select(
             "group_secrets.secret, master_secrets.secret, group_secrets.path",
         ).Joins("left join master_secrets on group_secrets.sid = master_secrets.id").Rows()
         if err != nil {
@@ -42,7 +42,7 @@ func ClientGetKey(cfg *config.Config, authobj *auth.AuthObject, msg messages.Mes
         }
     }
 
-    rows, err := cfg.Runtime.DB.Table("client_secrets").Where("client_secrets.uid = ?", authobj.UID).Select(
+    rows, err := cfg.DB.Table("client_secrets").Where("client_secrets.uid = ?", authobj.UID).Select(
         "client_secrets.secret, master_secrets.secret, client_secrets.path",
     ).Joins("left join master_secrets on client_secrets.sid = master_secrets.id").Rows()
     if err != nil {
@@ -77,7 +77,7 @@ func ClientGetKey(cfg *config.Config, authobj *auth.AuthObject, msg messages.Mes
 Client.Name => Name
 */
 func ClientDel(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message) (ret int, resp messages.Message) {
-    q := cfg.Runtime.DB.Where("name = ?", msg.Client.Name).Delete(db.Clients{})
+    q := cfg.DB.Where("name = ?", msg.Client.Name).Delete(db.Clients{})
     if q.RecordNotFound() {
         resp.Response = "No such user"
         ret = 404
@@ -105,14 +105,14 @@ func ClientGroup(cfg *config.Config, authobj *auth.AuthObject, msg messages.Mess
     client := new(db.Clients)
     group := new(db.Groups)
 
-    q := cfg.Runtime.DB.Where("name = ?", msg.Client.Name).First(client)
+    q := cfg.DB.Where("name = ?", msg.Client.Name).First(client)
     if q.RecordNotFound() {
         return namedFailure(400, "No such client")
     } else if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
 
-    q = cfg.Runtime.DB.Where("name = ? and kind = ?", msg.Client.Group, "client").First(group)
+    q = cfg.DB.Where("name = ? and kind = ?", msg.Client.Group, "client").First(group)
     if q.RecordNotFound() {
         return namedFailure(400, "No such group")
     } else if q.Error != nil {
@@ -131,7 +131,7 @@ func ClientGroup(cfg *config.Config, authobj *auth.AuthObject, msg messages.Mess
         client.GroupKey = shared.HexEncode(msg.Key.GroupPriv)
     }
 
-    q = cfg.Runtime.DB.Save(client)
+    q = cfg.DB.Save(client)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
@@ -152,8 +152,8 @@ func ClientRegister(cfg *config.Config, authobj *auth.AuthObject, msg messages.M
     client.Pubkey = shared.HexEncode(msg.Client.Key)
     client.Gid = config.DefClientGid
 
-    if cfg.Runtime.DB.First(client).RecordNotFound() {
-        q := cfg.Runtime.DB.Create(client)
+    if cfg.DB.First(client).RecordNotFound() {
+        q := cfg.DB.Create(client)
         if q.Error != nil {
             return genericFailure(cfg, q.Error)
         }
@@ -172,7 +172,7 @@ No input
 func ClientList(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message) (ret int, resp messages.Message) {
     list := make([]messages.Message, 0)
 
-    rows, err := cfg.Runtime.DB.Table("clients").Select("clients.name, groups.name").Joins("left join groups on clients.gid = groups.id").Rows()
+    rows, err := cfg.DB.Table("clients").Select("clients.name, groups.name").Joins("left join groups on clients.gid = groups.id").Rows()
     if err != nil {
         return genericFailure(cfg, err)
     }

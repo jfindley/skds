@@ -43,7 +43,7 @@ type SessionPool struct {
 
 func Admin(cfg *config.Config, name string, password []byte) (ok bool, a AuthObject) {
 	var admin db.Admins
-	q := cfg.Runtime.DB.Where("name = ?", name).First(&admin)
+	q := cfg.DB.Where("name = ?", name).First(&admin)
 	if q.RecordNotFound() {
 		return
 	}
@@ -73,7 +73,7 @@ func Admin(cfg *config.Config, name string, password []byte) (ok bool, a AuthObj
 
 func Client(cfg *config.Config, name string, password []byte) (ok bool, a AuthObject) {
 	var client db.Clients
-	q := cfg.Runtime.DB.Where("name = ?", name).First(&client)
+	q := cfg.DB.Where("name = ?", name).First(&client)
 	if q.RecordNotFound() {
 		return
 	}

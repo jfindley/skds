@@ -18,7 +18,7 @@ func TestAdminPass(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cfg.Runtime.DB.Close()
+	defer cfg.DB.Close()
 
 	// The password is hashed on the client before being sent to the server
 	testPass := []byte("new password string")
@@ -47,7 +47,7 @@ func TestAdminNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cfg.Runtime.DB.Close()
+	defer cfg.DB.Close()
 
 	msg.Admin.Name = "New Admin"
 	ret, resp := AdminNew(cfg, authobj, msg)
@@ -74,11 +74,11 @@ func TestAdminDel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cfg.Runtime.DB.Close()
+	defer cfg.DB.Close()
 
 	admin := new(db.Admins)
 	admin.Name = "New Admin"
-	cfg.Runtime.DB.Create(admin)
+	cfg.DB.Create(admin)
 
 	msg.Admin.Name = admin.Name
 	ret, resp := AdminDel(cfg, authobj, msg)
@@ -86,7 +86,7 @@ func TestAdminDel(t *testing.T) {
 		t.Fatal("Bad result :", ret, resp.Response)
 	}
 
-	if q := cfg.Runtime.DB.First(admin); !q.RecordNotFound() {
+	if q := cfg.DB.First(admin); !q.RecordNotFound() {
 		t.Error("Admin still exists after delete")
 	}
 }
@@ -97,11 +97,11 @@ func TestAdminSuper(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cfg.Runtime.DB.Close()
+	defer cfg.DB.Close()
 
 	admin := new(db.Admins)
 	admin.Name = "New Admin"
-	cfg.Runtime.DB.Create(admin)
+	cfg.DB.Create(admin)
 
 	msg.Admin.Name = admin.Name
 	msg.Key.GroupPriv = []byte("super key")
@@ -110,7 +110,7 @@ func TestAdminSuper(t *testing.T) {
 		t.Fatal("Bad result :", ret, resp.Response)
 	}
 
-	cfg.Runtime.DB.First(admin)
+	cfg.DB.First(admin)
 	if bytes.Compare(shared.HexDecode(admin.GroupKey), msg.Key.GroupPriv) != 0 {
 		t.Error("Group key does not match")
 	}
@@ -127,11 +127,11 @@ func TestAdminPubkey(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cfg.Runtime.DB.Close()
+	defer cfg.DB.Close()
 
 	admin := new(db.Admins)
 	admin.Id = authobj.UID
-	cfg.Runtime.DB.First(admin)
+	cfg.DB.First(admin)
 
 	msg.Admin.Key = []byte("pub key")
 	ret, resp := AdminPubkey(cfg, authobj, msg)
@@ -139,7 +139,7 @@ func TestAdminPubkey(t *testing.T) {
 		t.Fatal("Bad result :", ret, resp.Response)
 	}
 
-	cfg.Runtime.DB.First(admin)
+	cfg.DB.First(admin)
 	if bytes.Compare(shared.HexDecode(admin.Pubkey), msg.Admin.Key) != 0 {
 		t.Error("Public key does not match")
 	}
@@ -151,7 +151,7 @@ func TestAdminList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cfg.Runtime.DB.Close()
+	defer cfg.DB.Close()
 
 	msg.Admin.Name = "New Admin"
 	ret, resp := AdminNew(cfg, authobj, msg)
@@ -186,7 +186,7 @@ func TestAdminGroupAssign(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cfg.Runtime.DB.Close()
+	defer cfg.DB.Close()
 
 	superKey := new(crypto.Key)
 	groupKey := new(crypto.Key)
@@ -223,8 +223,8 @@ func TestAdminGroupAssign(t *testing.T) {
 	group.PubKey = shared.HexEncode(groupKey.Pub[:])
 	group.PrivKey = shared.HexEncode(groupPriv)
 
-	cfg.Runtime.DB.Create(admin)
-	cfg.Runtime.DB.Create(group)
+	cfg.DB.Create(admin)
+	cfg.DB.Create(group)
 
 	msg.Admin.Name = admin.Name
 	msg.Admin.Group = group.Name
@@ -237,7 +237,7 @@ func TestAdminGroupAssign(t *testing.T) {
 
 	// Make sure we can decrypt the group key after assignment with the admin key
 	admin = new(db.Admins)
-	cfg.Runtime.DB.Where("name = ?", msg.Admin.Name).First(admin)
+	cfg.DB.Where("name = ?", msg.Admin.Name).First(admin)
 
 	groupKeyRaw, err := crypto.Decrypt(shared.HexDecode(admin.GroupKey), adminKey)
 	if err != nil {
@@ -255,7 +255,7 @@ func TestAdminGroupNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cfg.Runtime.DB.Close()
+	defer cfg.DB.Close()
 
 	// We don't bother encrypting the private key for this test, it's not required
 	key := new(crypto.Key)
@@ -273,7 +273,7 @@ func TestAdminGroupNew(t *testing.T) {
 	}
 
 	group := new(db.Groups)
-	cfg.Runtime.DB.Where("name = ?", msg.Admin.Group).First(group)
+	cfg.DB.Where("name = ?", msg.Admin.Group).First(group)
 	if group.Kind != "admin" {
 		t.Error("Group type does not match")
 	}
@@ -292,7 +292,7 @@ func TestAdminGroupNew(t *testing.T) {
 	}
 
 	group = new(db.Groups)
-	cfg.Runtime.DB.Where("name = ?", msg.Client.Group).First(group)
+	cfg.DB.Where("name = ?", msg.Client.Group).First(group)
 	if group.Kind != "client" {
 		t.Error("Group type does not match")
 	}
@@ -310,22 +310,22 @@ func TestAdminGroupDel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cfg.Runtime.DB.Close()
+	defer cfg.DB.Close()
 
 	group := new(db.Groups)
 	groupSecrets := new(db.GroupSecrets)
 	group.Name = "New admin group"
 	group.Kind = "admin"
-	cfg.Runtime.DB.Create(group)
+	cfg.DB.Create(group)
 
 	groupSecrets.Gid = group.Id
 	groupSecrets.Sid = 1
-	cfg.Runtime.DB.Create(groupSecrets)
+	cfg.DB.Create(groupSecrets)
 
 	groupSecrets = new(db.GroupSecrets)
 	groupSecrets.Gid = group.Id
 	groupSecrets.Sid = 2
-	cfg.Runtime.DB.Create(groupSecrets)
+	cfg.DB.Create(groupSecrets)
 
 	msg.Admin.Group = group.Name
 
@@ -334,12 +334,12 @@ func TestAdminGroupDel(t *testing.T) {
 		t.Fatal("Bad result :", ret, resp.Response)
 	}
 
-	q := cfg.Runtime.DB.First(group, group.Id)
+	q := cfg.DB.First(group, group.Id)
 	if !q.RecordNotFound() {
 		t.Error("Group not deleted")
 	}
 
-	q = cfg.Runtime.DB.First(groupSecrets, group.Id)
+	q = cfg.DB.First(groupSecrets, group.Id)
 	if !q.RecordNotFound() {
 		t.Error("Group secret not deleted")
 	}
@@ -351,17 +351,17 @@ func TestAdminGroupList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cfg.Runtime.DB.Close()
+	defer cfg.DB.Close()
 
 	group := new(db.Groups)
 	group.Name = "New admin group"
 	group.Kind = "admin"
-	cfg.Runtime.DB.Create(group)
+	cfg.DB.Create(group)
 
 	group = new(db.Groups)
 	group.Name = "New client group"
 	group.Kind = "client"
-	cfg.Runtime.DB.Create(group)
+	cfg.DB.Create(group)
 
 	ret, resp := AdminGroupList(cfg, authobj, msg)
 	if ret != 0 || resp.Response != "OK" {

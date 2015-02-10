@@ -16,13 +16,13 @@ func AdminPass(cfg *config.Config, authobj *auth.AuthObject, msg messages.Messag
     admin := new(db.Admins)
     defer crypto.Zero(msg.Admin.Password)
 
-    q := cfg.Runtime.DB.First(admin, authobj.UID)
+    q := cfg.DB.First(admin, authobj.UID)
     if q.Error != nil || q.RecordNotFound() {
         return genericFailure(cfg, q.Error)
     }
 
     admin.Password = msg.Admin.Password
-    q = cfg.Runtime.DB.Save(admin)
+    q = cfg.DB.Save(admin)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
@@ -46,11 +46,11 @@ func AdminNew(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message
     admin.Name = msg.Admin.Name
     admin.Gid = config.DefAdminGid
 
-    if !cfg.Runtime.DB.NewRecord(admin) {
+    if !cfg.DB.NewRecord(admin) {
         return namedFailure(400, "Admin already exists")
     }
 
-    q := cfg.Runtime.DB.Create(admin)
+    q := cfg.DB.Create(admin)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
@@ -64,7 +64,7 @@ func AdminNew(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message
 Admin.Name => name
 */
 func AdminDel(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message) (ret int, resp messages.Message) {
-    q := cfg.Runtime.DB.Where("name = ?", msg.Admin.Name).Delete(db.Admins{})
+    q := cfg.DB.Where("name = ?", msg.Admin.Name).Delete(db.Admins{})
     if q.RecordNotFound() {
         resp.Response = "No such user"
         ret = 404
@@ -87,7 +87,7 @@ func AdminSuper(cfg *config.Config, authobj *auth.AuthObject, msg messages.Messa
 
     admin := new(db.Admins)
 
-    q := cfg.Runtime.DB.Where("name = ?", msg.Admin.Name).First(admin)
+    q := cfg.DB.Where("name = ?", msg.Admin.Name).First(admin)
     if q.RecordNotFound() {
         return namedFailure(400, "No such admin")
     } else if q.Error != nil {
@@ -101,7 +101,7 @@ func AdminSuper(cfg *config.Config, authobj *auth.AuthObject, msg messages.Messa
     admin.Gid = config.SuperGid
     admin.GroupKey = shared.HexEncode(msg.Key.GroupPriv)
 
-    q = cfg.Runtime.DB.Save(admin)
+    q = cfg.DB.Save(admin)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
@@ -116,13 +116,13 @@ func AdminPubkey(cfg *config.Config, authobj *auth.AuthObject, msg messages.Mess
     admin := new(db.Admins)
 
     admin.Id = authobj.UID
-    q := cfg.Runtime.DB.First(admin)
+    q := cfg.DB.First(admin)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
 
     admin.Pubkey = shared.HexEncode(msg.Admin.Key)
-    q = cfg.Runtime.DB.Save(admin)
+    q = cfg.DB.Save(admin)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
@@ -137,7 +137,7 @@ No input
 func AdminList(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message) (ret int, resp messages.Message) {
     list := make([]messages.Message, 0)
 
-    rows, err := cfg.Runtime.DB.Table("admins").Select("admins.name, groups.name").Joins("left join groups on admins.gid = groups.id").Rows()
+    rows, err := cfg.DB.Table("admins").Select("admins.name, groups.name").Joins("left join groups on admins.gid = groups.id").Rows()
     if err != nil {
         return genericFailure(cfg, err)
     }
@@ -174,14 +174,14 @@ func AdminGroupAssign(cfg *config.Config, authobj *auth.AuthObject, msg messages
     admin := new(db.Admins)
     group := new(db.Groups)
 
-    q := cfg.Runtime.DB.Where("name = ?", msg.Admin.Name).First(admin)
+    q := cfg.DB.Where("name = ?", msg.Admin.Name).First(admin)
     if q.RecordNotFound() {
         return namedFailure(400, "No such admin")
     } else if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
 
-    q = cfg.Runtime.DB.Where("name = ? and kind = ?", msg.Admin.Group, "admin").First(group)
+    q = cfg.DB.Where("name = ? and kind = ?", msg.Admin.Group, "admin").First(group)
     if q.RecordNotFound() {
         return namedFailure(400, "No such group")
     } else if q.Error != nil {
@@ -200,7 +200,7 @@ func AdminGroupAssign(cfg *config.Config, authobj *auth.AuthObject, msg messages
         admin.GroupKey = shared.HexEncode(msg.Key.GroupPriv)
     }
 
-    q = cfg.Runtime.DB.Save(admin)
+    q = cfg.DB.Save(admin)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
@@ -237,11 +237,11 @@ func AdminGroupNew(cfg *config.Config, authobj *auth.AuthObject, msg messages.Me
     group.PubKey = shared.HexEncode(msg.Key.GroupPub)
     group.PrivKey = shared.HexEncode(msg.Key.GroupPriv)
 
-    if !cfg.Runtime.DB.NewRecord(group) {
+    if !cfg.DB.NewRecord(group) {
         return namedFailure(400, "Group already exists")
     }
 
-    q := cfg.Runtime.DB.Create(group)
+    q := cfg.DB.Create(group)
     if q.Error != nil {
         return genericFailure(cfg, q.Error)
     }
@@ -275,7 +275,7 @@ func AdminGroupDel(cfg *config.Config, authobj *auth.AuthObject, msg messages.Me
         return namedFailure(400, "Builtin groups cannot be deleted")
     }
 
-    tx := cfg.Runtime.DB.Begin()
+    tx := cfg.DB.Begin()
     if tx.Error != nil {
         return genericFailure(cfg, tx.Error)
     }
@@ -323,7 +323,7 @@ No input
 func AdminGroupList(cfg *config.Config, authobj *auth.AuthObject, msg messages.Message) (ret int, resp messages.Message) {
     list := make([]messages.Message, 0)
 
-    rows, err := cfg.Runtime.DB.Table("groups").Select("name, kind").Rows()
+    rows, err := cfg.DB.Table("groups").Select("name, kind").Rows()
     if err != nil {
         return genericFailure(cfg, err)
     }

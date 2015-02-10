@@ -113,17 +113,17 @@ var compoundIndexes = map[string][]string{
 
 func InitDB(cfg *config.Config) error {
 	for _, table := range tableList {
-		q := cfg.Runtime.DB.DropTableIfExists(table)
+		q := cfg.DB.DropTableIfExists(table)
 		if q.Error != nil {
 			return q.Error
 		}
-		q = cfg.Runtime.DB.CreateTable(table)
+		q = cfg.DB.CreateTable(table)
 		if q.Error != nil {
 			return q.Error
 		}
 	}
 	for table, cols := range compoundIndexes {
-		q := cfg.Runtime.DB.Model(tableList[table]).AddUniqueIndex("idx_"+strings.Join(cols, "_"), cols...)
+		q := cfg.DB.Model(tableList[table]).AddUniqueIndex("idx_"+strings.Join(cols, "_"), cols...)
 		if q.Error != nil {
 			return q.Error
 		}
@@ -134,21 +134,21 @@ func InitDB(cfg *config.Config) error {
 func CreateDefaults(cfg *config.Config) error {
 	defClientGrp := Groups{Id: config.DefClientGid, Name: "default", Kind: "client"}
 
-	q := cfg.Runtime.DB.Create(&defClientGrp)
+	q := cfg.DB.Create(&defClientGrp)
 	if q.Error != nil {
 		return q.Error
 	}
 
 	defAdminGrp := Groups{Id: config.DefAdminGid, Name: "default", Kind: "admin"}
 
-	q = cfg.Runtime.DB.Create(&defAdminGrp)
+	q = cfg.DB.Create(&defAdminGrp)
 	if q.Error != nil {
 		return q.Error
 	}
 
 	superGrp := Groups{Id: config.SuperGid, Name: "super", Kind: "admin"}
 
-	q = cfg.Runtime.DB.Create(&superGrp)
+	q = cfg.DB.Create(&superGrp)
 	if q.Error != nil {
 		return q.Error
 	}
@@ -158,7 +158,7 @@ func CreateDefaults(cfg *config.Config) error {
 	}
 	admin := Admins{Gid: config.SuperGid, Name: "Admin", Password: pass}
 
-	q = cfg.Runtime.DB.Create(&admin)
+	q = cfg.DB.Create(&admin)
 	if q.Error != nil {
 		return q.Error
 	}
