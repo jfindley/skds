@@ -1,8 +1,4 @@
-package messages
-
-// This package just defines the message format.
-// We do this in a seperate package purely to avoid
-// import loops.
+package shared
 
 type Key struct {
 	Name      string `json:",omitempty"`

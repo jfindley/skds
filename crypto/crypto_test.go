@@ -15,30 +15,30 @@ func isZero(data []byte) bool {
 }
 
 func TestKey(t *testing.T) {
-	key := new(Key)
+	key1 := new(Key)
+	key2 := new(Key)
 
-	pub := []byte("foo")
-	priv := []byte("bar")
-
-	key.New(pub, nil)
-	key.SetPriv(priv)
-
-	if !isZero(priv) {
-		t.Error("Private key not zeroed")
-	}
-
-	// Just compare the first 3 bytes, as the array is a lot longer than our test slice
-	if bytes.Compare(key.Pub[0:3], pub) != 0 {
-		t.Error("Public key does not match")
-	}
-
-	if bytes.Compare(key.Priv[0:3], []byte("bar")) != 0 {
-		t.Error("Private key does not match")
-	}
-
-	err := key.Generate()
+	err := key1.Generate()
 	if err != nil {
-		t.Error("Failed to generate key")
+		t.Fatal(err)
+	}
+
+	data, err := key1.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = key2.Decode(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if bytes.Compare(key1.Priv[:], key2.Priv[:]) != 0 {
+		t.Error("Private key mismatch", key1.Priv, key2.Priv)
+	}
+
+	if bytes.Compare(key1.Pub[:], key2.Pub[:]) != 0 {
+		t.Error("Public key mismatch")
 	}
 
 }
@@ -99,5 +99,16 @@ func TestEncryption(t *testing.T) {
 	}
 	if _, err := Decrypt(nil, nullKey); err == nil {
 		t.Fatal("Failed to handle null input")
+	}
+}
+
+func TestRandomInt(t *testing.T) {
+	i, err := RandomInt()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Not definitiviely an error, but unlikely to happen unless there's a problem
+	if i == 0 {
+		t.Error("Random int returned 0")
 	}
 }

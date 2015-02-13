@@ -3,6 +3,7 @@ package crypto
 import (
 	"code.google.com/p/go.crypto/nacl/box"
 	"crypto/rand"
+	"encoding/pem"
 	"errors"
 	"io"
 	"math/big"
@@ -13,43 +14,56 @@ type Key struct {
 	Priv *[32]byte
 }
 
-func (k *Key) Zero() {
-	for i := range k.Priv {
-		k.Priv[i] ^= k.Priv[i]
-
-	}
-	return
-}
-
-func (k *Key) New(pub, priv []byte) {
-	k.Pub = new([32]byte)
-	k.Priv = new([32]byte)
-	if pub != nil {
-		for i := range pub {
-			k.Pub[i] = pub[i]
-		}
-	}
-	if priv != nil {
-		for i := range priv {
-			k.Priv[i] = priv[i]
-		}
-	}
-	Zero(priv)
-	return
-}
-
-func (k *Key) SetPriv(priv []byte) {
-	if priv != nil {
-		for i := range priv {
-			k.Priv[i] = priv[i]
-		}
-	}
-	Zero(priv)
-	return
-}
-
 func (k *Key) Generate() (err error) {
 	k.Pub, k.Priv, err = box.GenerateKey(rand.Reader)
+	return
+}
+
+func (k *Key) Encode() (data []byte, err error) {
+	pub := pem.EncodeToMemory(&pem.Block{Type: "NACL PUBLIC KEY", Bytes: k.Pub[:]})
+	if pub == nil {
+		return nil, errors.New("Unable to encode key")
+	}
+	defer Zero(pub)
+
+	priv := pem.EncodeToMemory(&pem.Block{Type: "NACL PRIVATE KEY", Bytes: k.Priv[:]})
+	if priv == nil {
+		return nil, errors.New("Unable to encode key")
+	}
+	defer Zero(priv)
+
+	data = make([]byte, len(pub)+len(priv))
+	copy(data[:len(pub)], pub)
+	copy(data[len(pub):], priv)
+	return
+}
+
+func (k *Key) Decode(data []byte) (err error) {
+	defer Zero(data)
+
+	k.Pub = new([32]byte)
+	k.Priv = new([32]byte)
+
+	pub, data := pem.Decode(data)
+	if pub.Type != "NACL PUBLIC KEY" {
+		return errors.New("Invalid public key")
+	}
+
+	priv, _ := pem.Decode(data)
+	if priv.Type != "NACL PRIVATE KEY" {
+		return errors.New("Invalid private key")
+	}
+
+	if pub.Bytes != nil {
+		for i := range pub.Bytes {
+			k.Pub[i] = pub.Bytes[i]
+		}
+	}
+	if priv.Bytes != nil {
+		for i := range priv.Bytes {
+			k.Priv[i] = priv.Bytes[i]
+		}
+	}
 	return
 }
 

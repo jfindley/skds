@@ -9,8 +9,6 @@ import (
 	"errors"
 	"io"
 	"math/big"
-
-	"github.com/jfindley/skds/shared"
 )
 
 const (
@@ -39,7 +37,7 @@ func PasswordHash(pass []byte) (hash []byte, err error) {
 		return
 	}
 	copy(key[SaltLength:], h)
-	hash = shared.HexEncode(key)
+	hash = HexEncode(key)
 	return
 }
 
@@ -75,7 +73,7 @@ func PasswordVerify(pass, hash []byte) (ok bool, err error) {
 		err = errors.New("Null input supplied")
 		return
 	}
-	dec := shared.HexDecode(hash)
+	dec := HexDecode(hash)
 	// Detect bad hash length
 	if len(dec) != SaltLength+scryptLen {
 		err = errors.New("Bad hash length")
@@ -96,12 +94,12 @@ func PasswordVerify(pass, hash []byte) (ok bool, err error) {
 func NewMAC(key, msg []byte) (mac []byte) {
 	m := hmac.New(sha256.New, key)
 	m.Write(msg)
-	mac = shared.HexEncode(m.Sum(nil))
+	mac = HexEncode(m.Sum(nil))
 	return
 }
 
 func VerifyMAC(key, msgMac, msg []byte) (ok bool) {
-	msgMacDec := shared.HexDecode(msgMac)
+	msgMacDec := HexDecode(msgMac)
 	mac := hmac.New(sha256.New, key)
 	mac.Write(msg)
 	expMac := mac.Sum(nil)

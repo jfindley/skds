@@ -1,46 +1,134 @@
 package crypto
 
 import (
-	"crypto/x509"
+	"bytes"
 	"testing"
 )
 
-func TestGenKey(t *testing.T) {
-	key, err := GenKey()
+func TestTLSKey(t *testing.T) {
+	key1 := new(TLSKey)
+	key2 := new(TLSKey)
+
+	err := key1.Generate()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !key.IsOnCurve(key.X, key.Y) {
-		t.Fatal("Key is not on curve")
+
+	data, err := key1.Encode()
+	if err != nil {
+		t.Fatal(err)
 	}
+
+	k1 := make([]byte, len(data))
+	copy(k1, data)
+
+	if data == nil {
+		t.Fatal("No data returned")
+	}
+
+	err = key2.Decode(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !isZero(data) {
+		t.Fatal("PEM data not zeroed")
+	}
+
+	k2, err := key2.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Compare(k1, k2) != 0 {
+		t.Error("Keys do not match")
+	}
+
 }
 
-func TestGenCert(t *testing.T) {
-	key, err := GenKey()
+func TestTLSCert(t *testing.T) {
+	key1 := new(TLSKey)
+	cert1 := new(TLSCert)
+	cert2 := new(TLSCert)
+
+	err := key1.Generate()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ca, err := GenCert("selfsigned", true, 1, &key.PublicKey, key, nil)
+	err = cert1.Generate("cert1", false, 1, &key1.Key.PublicKey, key1.Key, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	cert, err := GenCert("casigned", false, 1, &key.PublicKey, key, ca)
+	data, err := cert1.Encode()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if !ca.IsCA {
-		t.Error("CA cert not a CA")
+	if data == nil {
+		t.Fatal("No data returned")
 	}
 
-	if cert.IsCA {
-		t.Error("Cert is a CA")
-	}
-
-	_, err = cert.Verify(x509.VerifyOptions{Roots: CaPool(ca)})
+	err = cert2.Decode(data)
 	if err != nil {
-		t.Error("Failed to verify cert")
+		t.Fatal(err)
 	}
+
+	c2, err := cert2.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if bytes.Compare(data, c2) != 0 {
+		t.Error("Certs do not match")
+	}
+
+}
+
+func TestCertPool(t *testing.T) {
+	key1 := new(TLSKey)
+	cert1 := new(TLSCert)
+	cert2 := new(TLSCert)
+	pool := new(CertPool)
+
+	err := key1.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = cert1.Generate("cert1", false, 1, &key1.Key.PublicKey, key1.Key, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = cert2.Generate("cert2", false, 1, &key1.Key.PublicKey, key1.Key, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data, err := cert1.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	c2, err := cert2.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	data = append(data, c2...)
+
+	err = pool.Decode(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	p1, err := pool.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if bytes.Compare(data, p1) != 0 {
+		t.Error("Pool does not match input")
+	}
+
 }

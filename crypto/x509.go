@@ -10,17 +10,57 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/pem"
+	"errors"
 	"math/big"
 	"time"
 )
 
-func GenKey() (*ecdsa.PrivateKey, error) {
-	return ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+type TLSKey struct {
+	Key *ecdsa.PrivateKey
+}
+
+type TLSCert struct {
+	Cert *x509.Certificate
+}
+
+type CertPool struct {
+	CA    *x509.CertPool
+	certs []*x509.Certificate
+}
+
+func (t *TLSKey) Generate() (err error) {
+	t.Key, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	return
+}
+
+func (t *TLSKey) Encode() (data []byte, err error) {
+	der, err := x509.MarshalECPrivateKey(t.Key)
+	if err != nil {
+		return
+	}
+	data = pem.EncodeToMemory(&pem.Block{Type: "ECDSA PRIVATE KEY", Bytes: der})
+	if data == nil {
+		return nil, errors.New("Unable to encode key")
+	}
+	return
+}
+
+func (t *TLSKey) Decode(data []byte) (err error) {
+	defer Zero(data)
+	t.Key = new(ecdsa.PrivateKey)
+	pemData, _ := pem.Decode(data)
+	if len(pemData.Bytes) == 0 {
+		err = errors.New("Invalid key data")
+		return
+	}
+	t.Key, err = x509.ParseECPrivateKey(pemData.Bytes)
+	return
 }
 
 // For self-signed certs, leave caCert nil
-func GenCert(name string, isCa bool, years int, pubKey *ecdsa.PublicKey,
-	privKey *ecdsa.PrivateKey, caCert *x509.Certificate) (cert *x509.Certificate, err error) {
+func (t *TLSCert) Generate(name string, isCa bool, years int, pubKey *ecdsa.PublicKey,
+	privKey *ecdsa.PrivateKey, caCert *x509.Certificate) (err error) {
 
 	now := time.Now()
 
@@ -47,13 +87,69 @@ func GenCert(name string, isCa bool, years int, pubKey *ecdsa.PublicKey,
 	}
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, caCert, pubKey, privKey)
 	if err != nil {
-		return nil, err
+		return
 	}
-	return x509.ParseCertificate(derBytes)
+	t.Cert, err = x509.ParseCertificate(derBytes)
+	return
 }
 
-func CaPool(cert *x509.Certificate) *x509.CertPool {
-	p := x509.NewCertPool()
-	p.AddCert(cert)
-	return p
+func (t *TLSCert) Encode() (data []byte, err error) {
+	data = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: t.Cert.Raw})
+	if data == nil {
+		return nil, errors.New("Unable to encode cert")
+	}
+	return
+}
+
+func (t *TLSCert) Decode(data []byte) (err error) {
+	t.Cert = new(x509.Certificate)
+	pemData, _ := pem.Decode(data)
+	if len(pemData.Bytes) == 0 {
+		err = errors.New("Invalid cert data")
+		return
+	}
+	t.Cert, err = x509.ParseCertificate(pemData.Bytes)
+	return
+}
+
+func (c *CertPool) Encode() (data []byte, err error) {
+	for i := range c.certs {
+		block := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: c.certs[i].Raw})
+		if block == nil {
+			return nil, errors.New("Unable to encode subject")
+		}
+		data = append(data, block...)
+	}
+	return
+}
+
+// We don't use AppendCertsFromPEM here so we can easily add to c.certs as we go
+func (c *CertPool) Decode(data []byte) (err error) {
+	c.CA = x509.NewCertPool()
+	c.certs = make([]*x509.Certificate, 0)
+
+	// Copy data to avoid modifying our input
+	in := data
+	for len(in) > 0 {
+		var block *pem.Block
+		block, in = pem.Decode(in)
+		if block == nil {
+			break
+		}
+		if block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
+			continue
+		}
+
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			continue
+		}
+
+		c.CA.AddCert(cert)
+		c.certs = append(c.certs, cert)
+	}
+	if len(c.certs) == 0 {
+		return errors.New("Invalid cert data")
+	}
+	return
 }

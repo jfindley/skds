@@ -1,10 +1,13 @@
 package db
 
 import (
+	"fmt"
+	_ "github.com/go-sql-driver/mysql"
+	"github.com/jinzhu/gorm"
 	"strings"
 
-	"github.com/jfindley/skds/config"
 	"github.com/jfindley/skds/crypto"
+	"github.com/jfindley/skds/shared"
 )
 
 type Acl struct {
@@ -111,19 +114,49 @@ var compoundIndexes = map[string][]string{
 	"GroupSecrets":  []string{"Gid", "Sid"},
 }
 
-func InitDB(cfg *config.Config) error {
+func Connect(cfg shared.DBSettings) (db gorm.DB, err error) {
+	var uri string
+	if cfg.Host == "localhost" {
+		uri = fmt.Sprintf("%s:%s@/%s", s.User,
+			cfg.Pass, cfg.Database)
+	} else {
+		uri = fmt.Sprintf("%s:%s@(%s:%s)/%s", s.User,
+			cfg.Pass, cfg.Host, cfg.Port,
+			cfg.Database)
+	}
+	db, err = gorm.Open(cfg.Driver, uri)
+	if err != nil {
+		return
+	}
+	// Test we sucessfully connected and set limits
+	err = db.DB().Ping()
+	db.DB().SetMaxIdleConns(10)
+	db.DB().SetMaxOpenConns(100)
+	return
+}
+
+func InitDB(db *gorm.DB) error {
+	_, err := db.DB().Exec("create database if not exists skds")
+	if err != nil {
+		return err
+	}
+	_, err = db.DB().Exec("create database if not exists skds_test")
+	if err != nil {
+		return err
+	}
+
 	for _, table := range tableList {
-		q := cfg.DB.DropTableIfExists(table)
+		q := db.DropTableIfExists(table)
 		if q.Error != nil {
 			return q.Error
 		}
-		q = cfg.DB.CreateTable(table)
+		q = db.CreateTable(table)
 		if q.Error != nil {
 			return q.Error
 		}
 	}
 	for table, cols := range compoundIndexes {
-		q := cfg.DB.Model(tableList[table]).AddUniqueIndex("idx_"+strings.Join(cols, "_"), cols...)
+		q := db.Model(tableList[table]).AddUniqueIndex("idx_"+strings.Join(cols, "_"), cols...)
 		if q.Error != nil {
 			return q.Error
 		}
@@ -131,34 +164,34 @@ func InitDB(cfg *config.Config) error {
 	return nil
 }
 
-func CreateDefaults(cfg *config.Config) error {
-	defClientGrp := Groups{Id: config.DefClientGid, Name: "default", Kind: "client"}
+func CreateDefaults(db *gorm.DB) error {
+	defClientGrp := Groups{Id: shared.DefClientGid, Name: "default", Kind: "client"}
 
-	q := cfg.DB.Create(&defClientGrp)
+	q := db.Create(&defClientGrp)
 	if q.Error != nil {
 		return q.Error
 	}
 
-	defAdminGrp := Groups{Id: config.DefAdminGid, Name: "default", Kind: "admin"}
+	defAdminGrp := Groups{Id: shared.DefAdminGid, Name: "default", Kind: "admin"}
 
-	q = cfg.DB.Create(&defAdminGrp)
+	q = db.Create(&defAdminGrp)
 	if q.Error != nil {
 		return q.Error
 	}
 
-	superGrp := Groups{Id: config.SuperGid, Name: "super", Kind: "admin"}
+	superGrp := Groups{Id: shared.SuperGID, Name: "super", Kind: "admin"}
 
-	q = cfg.DB.Create(&superGrp)
+	q = db.Create(&superGrp)
 	if q.Error != nil {
 		return q.Error
 	}
-	pass, err := crypto.PasswordHash(config.DefaultAdminPass)
+	pass, err := crypto.PasswordHash(shared.DefaultAdminPass)
 	if err != nil {
 		return err
 	}
-	admin := Admins{Gid: config.SuperGid, Name: "Admin", Password: pass}
+	admin := Admins{Gid: config.SuperGID, Name: "Admin", Password: pass}
 
-	q = cfg.DB.Create(&admin)
+	q = db.Create(&admin)
 	if q.Error != nil {
 		return q.Error
 	}

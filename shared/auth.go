@@ -1,4 +1,4 @@
-package auth
+package shared
 
 import (
 	"bytes"
@@ -9,10 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jfindley/skds/config"
 	"github.com/jfindley/skds/crypto"
-	"github.com/jfindley/skds/server/db"
-	"github.com/jfindley/skds/shared"
 )
 
 var authErr = errors.New("Authentication failed")
@@ -34,81 +31,60 @@ type AuthObject struct {
 	SessionTime time.Time
 }
 
-type Authfunc func(*config.Config, string, []byte) (bool, AuthObject)
+type DBCreds struct {
+	Name     string
+	Password []byte
+	UID      uint
+	GID      uint
+	Admin    bool
+}
+
+type Credentials interface {
+	Get(*Config) (DBCreds, error)
+}
 
 type SessionPool struct {
 	Mu   sync.Mutex
 	Pool map[int64]*AuthObject
 }
 
-func Admin(cfg *config.Config, name string, password []byte) (ok bool, a AuthObject) {
-	var admin db.Admins
-	q := cfg.DB.Where("name = ?", name).First(&admin)
-	if q.RecordNotFound() {
-		return
-	}
-	if q.Error != nil {
-		cfg.Log(1, q.Error)
-		return
-	}
-	ok, err := crypto.PasswordVerify(password, admin.Password)
+func auth(cfg *Config, creds Credentials, name string, password []byte) (ok bool, a *AuthObject) {
+	a = new(AuthObject)
+
+	d, err := creds.Get(cfg)
 	if err != nil {
-		cfg.Log(1, err)
-		ok = false
-		return
-	}
-	if !ok {
 		return
 	}
 
-	a.Admin = true
+	if d.GID == 0 || d.UID == 0 {
+		return
+	}
+
+	ok, err = crypto.PasswordVerify(password, d.Password)
+	if err != nil {
+		ok = false
+		return
+	}
 	a.Name = name
-	a.UID = admin.Id
-	a.GID = admin.Gid
-	if admin.Gid == config.SuperGid {
+	a.UID = d.UID
+	a.GID = d.GID
+	a.Admin = d.Admin
+
+	if a.Admin && a.GID == SuperGid {
 		a.Super = true
 	}
 	return
 }
 
-func Client(cfg *config.Config, name string, password []byte) (ok bool, a AuthObject) {
-	var client db.Clients
-	q := cfg.DB.Where("name = ?", name).First(&client)
-	if q.RecordNotFound() {
-		return
-	}
-	if q.Error != nil {
-		cfg.Log(1, q.Error)
-		return
-	}
-	ok, err := crypto.PasswordVerify(password, client.Password)
-	if err != nil {
-		cfg.Log(1, err)
-		ok = false
-		return
-	}
+func (s *SessionPool) New(cfg *Config, name string, password []byte,
+	creds Credentials) (ok bool, id int64) {
+
+	ok, a := auth(cfg, creds, name, password)
 	if !ok {
 		return
 	}
 
-	a.Admin = false
-	a.Name = name
-	a.UID = client.Id
-	a.GID = client.Gid
-	return
-}
-
-func (s *SessionPool) New(cfg *config.Config, name string, password []byte,
-	authfunc Authfunc) (ok bool, id int64) {
-
-	var a AuthObject
-
-	ok, a = authfunc(cfg, name, password)
-	if !ok {
-		return
-	}
-
-	id, err := s.create(a)
+	id, err = s.create(a)
 	if err != nil {
 		cfg.Log(1, err)
 	}
@@ -130,7 +106,7 @@ func (s *SessionPool) NextKey(id int64) {
 			return
 		}
 		a := s.Pool[id]
-		newKey := shared.HexEncode(buf)
+		newKey := crypto.HexEncode(buf)
 		if bytes.Compare(a.SessionKey, newKey) != 0 {
 			a.SessionKey = newKey
 			s.Pool[id] = a
@@ -171,7 +147,7 @@ func (s *SessionPool) Pruner() {
 	}
 }
 
-func (s *SessionPool) create(a AuthObject) (id int64, err error) {
+func (s *SessionPool) create(a *AuthObject) (id int64, err error) {
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
 	// We do this in a loop to guarentee uniqueness
@@ -184,7 +160,7 @@ func (s *SessionPool) create(a AuthObject) (id int64, err error) {
 			if s.Pool == nil {
 				s.Pool = make(map[int64]*AuthObject)
 			}
-			s.Pool[id] = &a
+			s.Pool[id] = a
 			break
 		}
 	}
