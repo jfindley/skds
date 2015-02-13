@@ -55,7 +55,7 @@ func TestTLSCert(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	err = cert1.Generate("cert1", false, 1, &key1.Key.PublicKey, key1.Key, nil)
+	err = cert1.Generate("cert1", false, 1, key1.Public(), key1, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,19 +89,20 @@ func TestCertPool(t *testing.T) {
 	key1 := new(TLSKey)
 	cert1 := new(TLSCert)
 	cert2 := new(TLSCert)
-	pool := new(CertPool)
+	pool1 := new(CertPool)
+	pool2 := new(CertPool)
 
 	err := key1.Generate()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = cert1.Generate("cert1", false, 1, &key1.Key.PublicKey, key1.Key, nil)
+	err = cert1.Generate("cert1", false, 1, key1.Public(), key1, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	err = cert2.Generate("cert2", false, 1, &key1.Key.PublicKey, key1.Key, nil)
+	err = cert2.Generate("cert2", false, 1, key1.Public(), key1, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -117,12 +118,12 @@ func TestCertPool(t *testing.T) {
 
 	data = append(data, c2...)
 
-	err = pool.Decode(data)
+	err = pool1.Decode(data)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	p1, err := pool.Encode()
+	p1, err := pool1.Encode()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,4 +132,14 @@ func TestCertPool(t *testing.T) {
 		t.Error("Pool does not match input")
 	}
 
+	pool2.New(cert2)
+
+	p2, err := pool2.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if bytes.Compare(c2, p2) != 0 {
+		t.Error("Pool does not match input")
+	}
 }

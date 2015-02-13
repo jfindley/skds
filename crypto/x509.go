@@ -34,6 +34,10 @@ func (t *TLSKey) Generate() (err error) {
 	return
 }
 
+func (t *TLSKey) Public() *ecdsa.PublicKey {
+	return &t.Key.PublicKey
+}
+
 func (t *TLSKey) Encode() (data []byte, err error) {
 	der, err := x509.MarshalECPrivateKey(t.Key)
 	if err != nil {
@@ -60,7 +64,7 @@ func (t *TLSKey) Decode(data []byte) (err error) {
 
 // For self-signed certs, leave caCert nil
 func (t *TLSCert) Generate(name string, isCa bool, years int, pubKey *ecdsa.PublicKey,
-	privKey *ecdsa.PrivateKey, caCert *x509.Certificate) (err error) {
+	privKey *TLSKey, caCert *TLSCert) (err error) {
 
 	now := time.Now()
 
@@ -83,9 +87,10 @@ func (t *TLSCert) Generate(name string, isCa bool, years int, pubKey *ecdsa.Publ
 		template.KeyUsage = x509.KeyUsageCertSign
 	}
 	if caCert == nil {
-		caCert = &template
+		caCert = new(TLSCert)
+		caCert.Cert = &template
 	}
-	derBytes, err := x509.CreateCertificate(rand.Reader, &template, caCert, pubKey, privKey)
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, caCert.Cert, pubKey, privKey.Key)
 	if err != nil {
 		return
 	}
@@ -109,6 +114,14 @@ func (t *TLSCert) Decode(data []byte) (err error) {
 		return
 	}
 	t.Cert, err = x509.ParseCertificate(pemData.Bytes)
+	return
+}
+
+func (c *CertPool) New(cert *TLSCert) {
+	c.CA = x509.NewCertPool()
+	c.certs = make([]*x509.Certificate, 1)
+	c.certs[0] = cert.Cert
+	c.CA.AddCert(cert.Cert)
 	return
 }
 
