@@ -17,29 +17,37 @@ import (
 )
 
 type TLSKey struct {
-	Key *ecdsa.PrivateKey
+	key *ecdsa.PrivateKey
+}
+
+type TLSPubKey struct {
+	key *ecdsa.PublicKey
 }
 
 type TLSCert struct {
-	Cert *x509.Certificate
+	cert *x509.Certificate
 }
 
+// We have to maintain our own certs slice as there's no method
+// to get the original certs out of a pool.
 type CertPool struct {
 	CA    *x509.CertPool
 	certs []*x509.Certificate
 }
 
 func (t *TLSKey) Generate() (err error) {
-	t.Key, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	t.key, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	return
 }
 
-func (t *TLSKey) Public() *ecdsa.PublicKey {
-	return &t.Key.PublicKey
+func (t *TLSKey) Public() TLSPubKey {
+	var pub TLSPubKey
+	pub.key = &t.key.PublicKey
+	return pub
 }
 
 func (t *TLSKey) Encode() (data []byte, err error) {
-	der, err := x509.MarshalECPrivateKey(t.Key)
+	der, err := x509.MarshalECPrivateKey(t.key)
 	if err != nil {
 		return
 	}
@@ -52,18 +60,18 @@ func (t *TLSKey) Encode() (data []byte, err error) {
 
 func (t *TLSKey) Decode(data []byte) (err error) {
 	defer Zero(data)
-	t.Key = new(ecdsa.PrivateKey)
+	t.key = new(ecdsa.PrivateKey)
 	pemData, _ := pem.Decode(data)
 	if len(pemData.Bytes) == 0 {
 		err = errors.New("Invalid key data")
 		return
 	}
-	t.Key, err = x509.ParseECPrivateKey(pemData.Bytes)
+	t.key, err = x509.ParseECPrivateKey(pemData.Bytes)
 	return
 }
 
 // For self-signed certs, leave caCert nil
-func (t *TLSCert) Generate(name string, isCa bool, years int, pubKey *ecdsa.PublicKey,
+func (t *TLSCert) Generate(name string, isCa bool, years int, pubKey TLSPubKey,
 	privKey *TLSKey, caCert *TLSCert) (err error) {
 
 	now := time.Now()
@@ -88,18 +96,18 @@ func (t *TLSCert) Generate(name string, isCa bool, years int, pubKey *ecdsa.Publ
 	}
 	if caCert == nil {
 		caCert = new(TLSCert)
-		caCert.Cert = &template
+		caCert.cert = &template
 	}
-	derBytes, err := x509.CreateCertificate(rand.Reader, &template, caCert.Cert, pubKey, privKey.Key)
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, caCert.cert, pubKey.key, privKey.key)
 	if err != nil {
 		return
 	}
-	t.Cert, err = x509.ParseCertificate(derBytes)
+	t.cert, err = x509.ParseCertificate(derBytes)
 	return
 }
 
 func (t *TLSCert) Encode() (data []byte, err error) {
-	data = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: t.Cert.Raw})
+	data = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: t.cert.Raw})
 	if data == nil {
 		return nil, errors.New("Unable to encode cert")
 	}
@@ -107,21 +115,21 @@ func (t *TLSCert) Encode() (data []byte, err error) {
 }
 
 func (t *TLSCert) Decode(data []byte) (err error) {
-	t.Cert = new(x509.Certificate)
+	t.cert = new(x509.Certificate)
 	pemData, _ := pem.Decode(data)
 	if len(pemData.Bytes) == 0 {
 		err = errors.New("Invalid cert data")
 		return
 	}
-	t.Cert, err = x509.ParseCertificate(pemData.Bytes)
+	t.cert, err = x509.ParseCertificate(pemData.Bytes)
 	return
 }
 
 func (c *CertPool) New(cert *TLSCert) {
 	c.CA = x509.NewCertPool()
 	c.certs = make([]*x509.Certificate, 1)
-	c.certs[0] = cert.Cert
-	c.CA.AddCert(cert.Cert)
+	c.certs[0] = cert.cert
+	c.CA.AddCert(cert.cert)
 	return
 }
 
