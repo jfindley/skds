@@ -8,6 +8,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -123,6 +124,14 @@ func (t *TLSCert) Decode(data []byte) (err error) {
 	}
 	t.cert, err = x509.ParseCertificate(pemData.Bytes)
 	return
+}
+
+func TLSCertKeyPair(cert *TLSCert, key *TLSKey) (tlsCert []tls.Certificate) {
+	tlsCert = make([]tls.Certificate, 1)
+
+	tlsCert[0].Certificate = append(tlsCert[0].Certificate, cert.cert.Raw)
+	tlsCert[0].PrivateKey = key.key
+	return tlsCert
 }
 
 func (c *CertPool) New(cert *TLSCert) {
