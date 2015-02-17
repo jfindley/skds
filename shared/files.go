@@ -2,9 +2,8 @@ package shared
 
 import (
 	"crypto/subtle"
+	"encoding/base64"
 	"io/ioutil"
-
-	"github.com/jfindley/skds/crypto"
 )
 
 type FileData interface {
@@ -44,10 +43,23 @@ func (b *Binary) Compare(data []byte) bool {
 }
 
 func (b *Binary) Encode() ([]byte, error) {
-	return crypto.HexEncode(*b), nil
+	encLen := base64.StdEncoding.EncodedLen(len(*b))
+
+	enc := make([]byte, encLen)
+	base64.StdEncoding.Encode(enc, *b)
+
+	return enc, nil
 }
 
 func (b *Binary) Decode(data []byte) error {
-	*b = crypto.HexDecode(data)
+	decLen := base64.StdEncoding.DecodedLen(len(data))
+
+	dec := make([]byte, decLen)
+	n, err := base64.StdEncoding.Decode(dec, data)
+	if err != nil {
+		return err
+	}
+
+	*b = dec[:n]
 	return nil
 }
