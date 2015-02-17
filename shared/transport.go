@@ -146,6 +146,9 @@ func customDialer(network, addr string, cfg *Config) (conn net.Conn, err error) 
 		return
 	}
 
+	// Really it'd be slightly more efficient to use the signature rather
+	// than the entire cert here, but using the entire cert makes testing
+	// much easier, and the space cost is pretty minimal.
 	err = checkSig(cfg, connState.PeerCertificates[0].Raw)
 
 	return
