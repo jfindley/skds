@@ -1,39 +1,104 @@
 package shared
 
-// import (
-// 	"bytes"
-// 	"crypto/x509"
-// 	"encoding/json"
-// 	"errors"
-// 	"fmt"
-// 	"io/ioutil"
-// 	"net/http"
-// 	"strconv"
-// 	"strings"
+import (
+	"bytes"
+	// "crypto/x509"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	// "strconv"
+	"strings"
 
-// 	"github.com/jfindley/skds/crypto"
-// )
+	"github.com/jfindley/skds/crypto"
+)
 
-// var maxLen = 200
+var maxLen = 200
 
-// // Header names
-// const (
-// 	hdrEnc     = "Content-Encoding"
-// 	hdrUA      = "User-Agent"
-// 	hdrSession = "Session-ID"
-// 	hdrMAC     = "X-AUTH-MAC"
-// 	hdrKey     = "X-AUTH-KEY"
-// )
+// Header names
+const (
+	hdrEnc     = "Content-Encoding"
+	hdrUA      = "User-Agent"
+	hdrSession = "Session-ID"
+	hdrMAC     = "X-AUTH-MAC"
+	hdrKey     = "X-AUTH-KEY"
+)
 
-// func (s *Session) AuthClient(cfg *Config) (err error) {
-// 	err = s.auth(cfg, "/auth/client")
-// 	return
-// }
+func (s *Session) Get(url string) (resp []Message, err error) {
+	r, err := s.client.Get(fmtUrl(url))
+	if err != nil {
+		return
+	}
 
-// func (s *Session) AuthAdmin(cfg *Config) (err error) {
-// 	err = s.auth(cfg, "/auth/admin")
-// 	return
-// }
+	if r.StatusCode != 200 {
+		return resp, fmt.Errorf("%s %d %s\n", "Recieved", r.StatusCode, "response from server")
+	}
+
+	err = s.nextKey(r)
+	if err != nil {
+		return
+	}
+
+	return readResp(r.Body)
+}
+
+func (s *Session) Post(url string, data []byte) (resp []Message, err error) {
+	r, err := s.client.Post(fmtUrl(url), "application/skds", bytes.NewReader(data))
+	if err != nil {
+		return
+	}
+
+	if r.StatusCode != 200 {
+		return resp, fmt.Errorf("%s %d %s\n", "Recieved", r.StatusCode, "response from server")
+	}
+
+	err = s.nextKey(r)
+	if err != nil {
+		return
+	}
+
+	return readResp(r.Body)
+}
+
+// Even though all requests are sent over HTTPS, we force the HTTP scheme
+// here because we use a custom dialer that handles the TLS setup seperately.
+
+func fmtUrl(url string) string {
+	return strings.Replace(url, "https", "http", 1)
+}
+
+func readResp(r io.Reader) (resp []Message, err error) {
+	if r == nil {
+		return
+	}
+	dec := json.NewDecoder(r)
+	for {
+		var m Message
+		if err = dec.Decode(&m); err == io.EOF {
+			return resp, nil
+		} else if err != nil {
+			return
+		}
+		resp = append(resp, m)
+	}
+}
+
+func (s *Session) nextKey(r *http.Response) (err error) {
+	if s.sessionID == 0 {
+		return
+	}
+	key := []byte(r.Header.Get(hdrKey))
+	newKey := crypto.HexDecode(key)
+	if len(newKey) == 0 {
+		return errors.New("Invalid session key in response")
+	}
+	if bytes.Compare(newKey, s.sessionKey) == 0 {
+		return errors.New("Session key not rotated")
+	}
+	s.sessionKey = newKey
+	return
+}
 
 // // We use an empty interface here to allow sending other things than an SKDS message.
 // func (s *Session) Request(cfg *Config, path string, msg interface{}) (m Message, err error) {
@@ -84,31 +149,15 @@ package shared
 
 // 	key := []byte(resp.Header.Get(hdrKey))
 // 	newKey := shared.HexDecode(key)
-// 	if len(newKey) == 0 {
-// 		err = errors.New("Invalid session key in response")
-// 		return
-// 	}
-// 	if bytes.Compare(newKey, s.SessionKey) == 0 {
-// 		err = errors.New("Session key not rotated")
-// 		return
-// 	}
-// 	s.SessionKey = newKey
 
 // 	return
 // }
 
-// // Even though all requests are sent over HTTPS, we use the http scheme
-// // here because we use a custom dialer that handles the TLS setup seperately.
-
-// func url(addr, path string) string {
-// 	return fmt.Sprintf("http://%s%s", addr, path)
-// }
-
-// func (s *Session) auth(cfg *Config, path string) (err error) {
-// 	msg := new(messages.Message)
+// func (s *Session) Auth(cfg *Config) (err error) {
+// 	msg := new(Message)
 
 // 	msg.Auth.Name = cfg.Startup.Name
-// 	msg.Auth.Password = cfg.Runtime.Password
+// 	msg.Auth.Password = s.Password
 
 // 	data, err := json.Marshal(msg)
 // 	if err != nil {

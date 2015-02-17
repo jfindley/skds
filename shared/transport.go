@@ -2,9 +2,13 @@ package shared
 
 import (
 	"crypto/tls"
+	"errors"
 	"net"
 	"net/http"
+	"os"
 	"time"
+
+	"github.com/jfindley/skds/crypto"
 )
 
 // As we only need to interoperate with ourself, there's no reason to
@@ -23,82 +27,91 @@ var (
 	respTimeout time.Duration = 300 * time.Second
 )
 
-// type Session struct {
-// 	sessionID  int64
-// 	sessionKey []byte
-// 	Client     *http.Client
-// 	TLSConfig  *tls.Config
-// 	Password   []byte
-// 	AuthURL    string
-// }
+type Session struct {
+	Password  []byte
+	ServerSig []byte
 
-func (s *ServerSession) New(cfg *config.Config) (ok bool, log LogItem) {
-	tlsCert := make([]tls.Certificate, 1)
-	if s.Cert == nil || s.Key == nil {
-		log.Level = 0
-		log.Message = "Missing TLS Cert/Key"
-		return false
-	}
-	tlsCert[0].Certificate = append(tlsCert[0].Certificate, s.Cert.Raw)
-	tlsCert[0].PrivateKey = s.Key
-
+	sessionID  int64
+	sessionKey []byte
+	client     *http.Client
+	tls        *tls.Config
 }
 
-// func ServerInit(cfg *config.Config) (*net.Listener, *http.Server, *http.ServeMux, error) {
-// 	tlsCfg := generate(cfg)
-// 	tlsSocket, err := tls.Listen("tcp", cfg.Startup.Address, tlsCfg)
-// 	if err != nil {
-// 		return nil, nil, nil, err
-// 	}
-// 	mux := http.NewServeMux()
-// 	srv := http.Server{
-// 		Addr:    cfg.Startup.Address,
-// 		Handler: mux,
-// 	}
-// 	return &tlsSocket, &srv, mux, nil
-// }
+type Server struct {
+	Pool *SessionPool
+	Mux  *http.ServeMux
 
-// func (s *Session) NewClient(cfg *config.Config) error {
-// 	tr := &http.Transport{
-// 		TLSHandshakeTimeout:   tlsTimeout,
-// 		ResponseHeaderTimeout: respTimeout,
-// 	}
+	tls    *tls.Config
+	server *http.Server
+	socket net.Listener
+}
 
-// 	tr.Dial = func(network, addr string) (net.Conn, error) {
-// 		return customDialer(network, addr, cfg)
-// 	}
+func (s *Server) New(cfg *Config) (err error) {
+	s = new(Server)
+	s.Mux = http.NewServeMux()
+	s.Pool = new(SessionPool)
+	s.server = new(http.Server)
 
-// 	s.Client = &http.Client{Transport: tr}
-
-// 	return nil
-// }
-
-func generateTLS(cfg *config.Config) *tls.Config {
-	tlsCert := make([]tls.Certificate, 1)
-	if cfg.Runtime.Cert != nil {
-		tlsCert[0].Certificate = append(tlsCert[0].Certificate, cfg.Runtime.Cert.Raw)
-		tlsCert[0].PrivateKey = cfg.Runtime.Key
+	s.tls = generateTLS(cfg)
+	s.socket, err = tls.Listen("tcp", cfg.Startup.Address, s.tls)
+	if err != nil {
+		return
 	}
 
+	s.server = new(http.Server)
+	s.server.Addr = cfg.Startup.Address
+	s.server.Handler = s.Mux
+	return
+}
+
+func (s *Server) Start() {
+	go func() {
+		err := s.server.Serve(s.socket)
+		if err != nil {
+			panic(err)
+		}
+	}()
+	return
+}
+
+func (s *Session) New(cfg *Config) error {
+	tr := new(http.Transport)
+	tr.TLSHandshakeTimeout = tlsTimeout
+	tr.ResponseHeaderTimeout = respTimeout
+
+	tr.Dial = func(network, addr string) (net.Conn, error) {
+		return customDialer(network, addr, cfg)
+	}
+
+	s.client = &http.Client{Transport: tr}
+
+	return nil
+}
+
+func generateTLS(cfg *Config) *tls.Config {
+
 	config := tls.Config{
-		Certificates:           tlsCert,
 		Rand:                   nil, // Use crypto/rand
 		CipherSuites:           ciphers,
 		SessionTicketsDisabled: false,
 		ClientAuth:             tls.NoClientCert,
 	}
 
+	if cfg.Runtime.Cert != nil && cfg.Runtime.Key != nil {
+		config.Certificates = crypto.TLSCertKeyPair(cfg.Runtime.Cert, cfg.Runtime.Key)
+	}
+
 	if cfg.Runtime.CA == nil {
 		config.InsecureSkipVerify = true
 	} else {
 		config.InsecureSkipVerify = false
-		config.RootCAs = cfg.Runtime.CA
+		config.RootCAs = cfg.Runtime.CA.CA
 	}
 	return &config
 }
 
-func customDialer(network, addr string, cfg *config.Config) (conn net.Conn, err error) {
-	tlsCfg := generate(cfg)
+func customDialer(network, addr string, cfg *Config) (conn net.Conn, err error) {
+	tlsCfg := generateTLS(cfg)
 
 	serverName, _, err := net.SplitHostPort(cfg.Startup.Address)
 	if err != nil {
@@ -132,19 +145,34 @@ func customDialer(network, addr string, cfg *config.Config) (conn net.Conn, err 
 		err = errors.New("No server certificates available")
 		return
 	}
-	serverSig := string(shared.HexEncode(connState.PeerCertificates[0].Signature))
-	if cfg.Startup.ServerSignature == "" {
-		cfg.Startup.ServerSignature = serverSig
-		err = cfg.Startup.Write("skds.conf")
-		if err != nil {
+
+	err = checkSig(cfg, connState.PeerCertificates[0].Raw)
+
+	return
+}
+
+func checkSig(cfg *Config, sig []byte) (err error) {
+	if cfg.Runtime.ServerSig == nil {
+		cfg.Runtime.ServerSig = new(Binary)
+
+		if _, err = os.Stat(cfg.Startup.Crypto.ServerSig); os.IsNotExist(err) {
+
+			cfg.Runtime.ServerSig.New(sig)
+
+			err = Write(cfg.Runtime.ServerSig, cfg.Startup.Crypto.ServerSig)
 			return
-		}
-	} else {
-		if serverSig != cfg.Startup.ServerSignature {
-			err = errors.New("Server certificate changed unexpectedly")
-			return
+		} else {
+
+			err = Read(cfg.Runtime.ServerSig, cfg.Startup.Crypto.ServerSig)
+			if err != nil {
+				return
+			}
+
 		}
 	}
 
-	return
+	if !cfg.Runtime.ServerSig.Compare(sig) {
+		return errors.New("Server signature does not match")
+	}
+	return nil
 }

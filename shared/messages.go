@@ -38,11 +38,10 @@ type Auth struct {
 }
 
 type Message struct {
-	Key          Key       `json:",omitempty"`
-	Client       Client    `json:",omitempty"`
-	Admin        Admin     `json:",omitempty"`
-	X509         X509      `json:"x509,omitempty"`
-	Auth         Auth      `json:",omitempty"`
-	Response     string    `json:",omitempty"`
-	ResponseData []Message `json:",omitempty"`
+	Key      Key    `json:",omitempty"`
+	Client   Client `json:",omitempty"`
+	Admin    Admin  `json:",omitempty"`
+	X509     X509   `json:"x509,omitempty"`
+	Auth     Auth   `json:",omitempty"`
+	Response string `json:",omitempty"`
 }

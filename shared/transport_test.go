@@ -27,7 +27,7 @@ package shared
 
 // func returnNamedError(w http.ResponseWriter, r *http.Request) {
 // 	w.WriteHeader(500)
-// 	var m messages.Message
+// 	var m Message
 // 	m.Response = "Failed"
 // 	d, err := json.Marshal(m)
 // 	if err != nil {
@@ -62,8 +62,8 @@ package shared
 // }
 
 // func testRequest(w http.ResponseWriter, r *http.Request) {
-// 	req := new(messages.Message)
-// 	resp := new(messages.Message)
+// 	req := new(Message)
+// 	resp := new(Message)
 
 // 	body, err := ioutil.ReadAll(r.Body)
 // 	if err != nil {
@@ -77,6 +77,15 @@ package shared
 // 	err = json.Unmarshal(body, req)
 // 	if err != nil {
 // 		panic(err)
+// 	}
+
+// 	// Basic GET request
+// 	if body == nil {
+// 		resp.Response = "OK"
+// 		data, err := json.Marshal(resp)
+// 		if err != nil {
+// 			panic(err)
+// 		}
 // 	}
 
 // 	switch req.Admin.Name {
@@ -121,50 +130,49 @@ package shared
 // 	return
 // }
 
-// func testServer(cfg *config.Config) {
-// 	sock, srv, mux, err := ServerInit(cfg)
-// 	if err != nil {
-// 		panic(err)
-// 	}
+// func testServer(cfg *Config) {
+// 	srv := new(Server)
 
-// 	mux.HandleFunc("/test", return200)
-// 	mux.HandleFunc("/auth/admin", uncondSuccess)
-// 	mux.HandleFunc("/auth/client", badSessionKey)
-// 	mux.HandleFunc("/test/request", testRequest)
-// 	mux.HandleFunc("/auth/testsig", verifySig)
-// 	mux.HandleFunc("/fail", returnError)
-// 	mux.HandleFunc("/failerror", returnNamedError)
+// 	err := srv.New(cfg)
 
-// 	go func() {
-// 		err = srv.Serve(*sock)
-// 		if err != nil {
-// 			panic(err)
-// 		}
-// 	}()
+// 	srv.Mux.HandleFunc("/test", return200)
+// 	srv.Mux.HandleFunc("/login", uncondSuccess)
+// 	srv.Mux.HandleFunc("/auth", badSessionKey)
+// 	srv.Mux.HandleFunc("/test/request", testRequest)
+// 	srv.Mux.HandleFunc("/auth/testsig", verifySig)
+// 	srv.Mux.HandleFunc("/fail", returnError)
+// 	srv.Mux.HandleFunc("/failerror", returnNamedError)
+
+// 	srv.Start()
 
 // 	return
 // }
 
 // func TestTransport(t *testing.T) {
-// 	key, err := crypto.GenKey()
+// 	cfg := new(Config)
+
+// 	cfg.Runtime.Key = new(crypto.TLSKey)
+// 	cfg.Runtime.CACert = new(crypto.TLSCert)
+// 	cfg.Runtime.Cert = new(crypto.TLSCert)
+// 	cfg.Runtime.CA = new(crypto.CertPool)
+
+// 	err := cfg.Runtime.Key.Generate()
 // 	if err != nil {
 // 		t.Fatal(err)
 // 	}
 
-// 	ca, err := crypto.GenCert("ca", true, 1, &key.PublicKey, key, nil)
+// 	err = cfg.Runtime.CACert.Generate("ca", true, 1, cfg.Runtime.Key.Public(), cfg.Runtime.Key, nil)
 // 	if err != nil {
 // 		t.Fatal(err)
 // 	}
 
-// 	cert, err := crypto.GenCert("localhost", false, 1, &key.PublicKey, key, ca)
+// 	err = cfg.Runtime.Cert.Generate("localhost", false, 1, cfg.Runtime.Key.Public(), cfg.Runtime.Key, cfg.Runtime.CACert)
 // 	if err != nil {
 // 		t.Fatal(err)
 // 	}
 
-// 	cfg := new(config.Config)
-// 	cfg.Runtime.Key = key
-// 	cfg.Runtime.Cert = cert
-// 	cfg.Runtime.CA = crypto.CaPool(ca)
+// 	cfg.Runtime.CA.New(cfg.Runtime.Cert)
+
 // 	cfg.Startup.Address = "localhost:8443"
 // 	cfg.Startup.Dir = "/tmp"
 
@@ -174,12 +182,12 @@ package shared
 
 // 	sess := new(Session)
 
-// 	err = sess.NewClient(cfg)
+// 	err = sess.New(cfg)
 // 	if err != nil {
 // 		t.Fatal(err)
 // 	}
 
-// 	_, err = sess.Client.Get("http://localhost:8443/test")
+// 	_, err = sess.Get("http://localhost:8443/test")
 // 	if err != nil {
 // 		t.Fatal(err)
 // 	}
@@ -221,7 +229,7 @@ package shared
 // 		t.Error(err)
 // 	}
 
-// 	var msg messages.Message
+// 	var msg Message
 
 // 	msg.Admin.Name = "basic"
 // 	resp, err := sess.Request(cfg, "/test/request", msg)

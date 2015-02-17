@@ -34,13 +34,14 @@ type Config struct {
 // Runtime attributes.
 // These should never be written to disk
 type Runtime struct {
-	Log     io.Writer
-	Key     *ecdsa.PrivateKey
-	Cert    *x509.Certificate
-	CAKey   *ecdsa.PrivateKey
-	CACert  *x509.Certificate
-	CA      *x509.CertPool
-	Keypair crypto.Key
+	Log       io.Writer
+	Key       *crypto.TLSKey
+	Cert      *crypto.TLSCert
+	CAKey     *crypto.TLSKey
+	CACert    *crypto.TLSCert
+	CA        *crypto.CertPool
+	Keypair   *crypto.Key
+	ServerSig *Binary
 }
 
 // Startup attributes.
@@ -73,6 +74,7 @@ type StartupCrypto struct {
 	CAKey      string
 	PublicKey  string
 	PrivateKey string
+	ServerSig  string
 }
 
 func ReadArgs() (cfg Config, install bool, args []string) {
@@ -111,12 +113,6 @@ func (c *Config) Option(opts ...Option) {
 		opt(c)
 	}
 }
-
-// func CAPool() Option {
-// 	return func(c *Config) {
-// 		c.Runtime.CA = crypto.CaPool(c.Runtime.CACert)
-// 	}
-// }
 
 // Allow commandline options to override config
 type dynamicOpt func(*flag.Flag)
