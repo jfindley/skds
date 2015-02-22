@@ -16,22 +16,14 @@ type Acl struct {
 	ClientGid uint
 }
 
-type Admins struct {
+type Users struct {
 	Id       uint
 	Gid      uint
 	Name     string `sql:"not null;unique"`
 	Pubkey   []byte
 	Password []byte
 	GroupKey []byte
-}
-
-type Clients struct {
-	Id       uint
-	Gid      uint
-	Name     string `sql:"not null;unique"`
-	Pubkey   []byte
-	Password []byte
-	GroupKey []byte
+	Kind     string
 }
 
 // The secrets tables bear a little explanation.
@@ -56,14 +48,7 @@ type Clients struct {
 // secret.  This means we don't need to zero out memory in here.
 // Unencrypted passwords never get as far as these functions either.
 
-type AdminSecrets struct {
-	Id     uint
-	Sid    uint
-	Uid    uint
-	Secret []byte
-}
-
-type ClientSecrets struct {
+type UserSecrets struct {
 	Id     uint
 	Sid    uint
 	Uid    uint
@@ -97,21 +82,19 @@ type GroupSecrets struct {
 
 var tableList = map[string]interface{}{
 	"Acl":           Acl{},
-	"Admins":        Admins{},
+	"Users":         Users{},
 	"Clients":       Clients{},
-	"AdminSecrets":  AdminSecrets{},
-	"ClientSecrets": ClientSecrets{},
+	"UserSecrets":   UserSecrets{},
 	"MasterSecrets": MasterSecrets{},
 	"Groups":        Groups{},
 	"GroupSecrets":  GroupSecrets{},
 }
 
 var compoundIndexes = map[string][]string{
-	"Acl":           []string{"admin_gid", "client_gid"},
-	"AdminSecrets":  []string{"Sid", "Uid"},
-	"ClientSecrets": []string{"Sid", "Uid"},
-	"Groups":        []string{"Name", "Kind"},
-	"GroupSecrets":  []string{"Gid", "Sid"},
+	"Acl":          []string{"admin_gid", "client_gid"},
+	"UserSecrets":  []string{"Sid", "Uid"},
+	"Groups":       []string{"Name", "Kind"},
+	"GroupSecrets": []string{"Gid", "Sid"},
 }
 
 func Connect(cfg shared.DBSettings) (db gorm.DB, err error) {

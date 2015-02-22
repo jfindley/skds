@@ -70,7 +70,7 @@ func TestCreateDefaults(t *testing.T) {
 		t.Error("Supergroup created with wrong ID:", group.Id)
 	}
 
-	admin := new(Admins)
+	admin := new(Users)
 	q = cfg.DB.Where("name = ?", "admin").First(admin)
 	if q.Error != nil {
 		t.Error(q.Error)
