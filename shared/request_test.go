@@ -13,9 +13,15 @@ import (
 	"github.com/jfindley/skds/crypto"
 )
 
+var (
+	err error
+	cfg *Config
+)
+
 func init() {
 	// httptest doesn't appear to support ECDHE cipher suites
 	ciphers = []uint16{tls.TLS_RSA_WITH_AES_128_CBC_SHA}
+	cfg = new(Config)
 }
 
 func TestGet(t *testing.T) {

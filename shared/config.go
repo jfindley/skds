@@ -32,7 +32,6 @@ type Config struct {
 	Startup Startup // These are stored in the config file
 	DB      gorm.DB // DB interface (only used in server mode)
 	Session Session // Admin/Client transport data
-	Server  Server  // Server transport data
 	Mode    string  // Server|Admin|Client
 }
 

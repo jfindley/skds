@@ -38,43 +38,6 @@ type Session struct {
 	serverPath string
 }
 
-type Server struct {
-	Pool *SessionPool
-	Mux  *http.ServeMux
-
-	tls    *tls.Config
-	server *http.Server
-	socket net.Listener
-}
-
-func (s *Server) New(cfg *Config) (err error) {
-	s = new(Server)
-	s.Mux = http.NewServeMux()
-	s.Pool = new(SessionPool)
-	s.server = new(http.Server)
-
-	s.tls = generateTLS(cfg)
-	s.socket, err = tls.Listen("tcp", cfg.Startup.Address, s.tls)
-	if err != nil {
-		return
-	}
-
-	s.server = new(http.Server)
-	s.server.Addr = cfg.Startup.Address
-	s.server.Handler = s.Mux
-	return
-}
-
-func (s *Server) Start() {
-	go func() {
-		err := s.server.Serve(s.socket)
-		if err != nil {
-			panic(err)
-		}
-	}()
-	return
-}
-
 func (s *Session) New(cfg *Config) error {
 	tr := new(http.Transport)
 	tr.TLSHandshakeTimeout = tlsTimeout
@@ -91,7 +54,7 @@ func (s *Session) New(cfg *Config) error {
 	return nil
 }
 
-func generateTLS(cfg *Config) *tls.Config {
+func GenerateTLS(cfg *Config) *tls.Config {
 
 	config := tls.Config{
 		Rand:                   nil, // Use crypto/rand
@@ -114,7 +77,7 @@ func generateTLS(cfg *Config) *tls.Config {
 }
 
 func customDialer(network, addr string, cfg *Config) (conn net.Conn, err error) {
-	tlsCfg := generateTLS(cfg)
+	tlsCfg := GenerateTLS(cfg)
 
 	serverName, _, err := net.SplitHostPort(cfg.Startup.Address)
 	if err != nil {
