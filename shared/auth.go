@@ -83,7 +83,7 @@ func (s *SessionPool) New(cfg *Config, name string, password []byte,
 		return
 	}
 
-	id, err = s.create(a)
+	id, err := s.create(a)
 	if err != nil {
 		cfg.Log(1, err)
 	}
