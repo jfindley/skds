@@ -12,18 +12,18 @@ import (
 
 type Acl struct {
 	Id        uint
-	AdminGid  uint
-	ClientGid uint
+	AdminGID  uint
+	ClientGID uint
 }
 
 type Users struct {
 	Id       uint
-	Gid      uint
+	GID      uint
 	Name     string `sql:"not null;unique"`
 	Pubkey   []byte
 	Password []byte
 	GroupKey []byte
-	Kind     string
+	Admin    bool
 }
 
 // The secrets tables bear a little explanation.
@@ -50,8 +50,8 @@ type Users struct {
 
 type UserSecrets struct {
 	Id     uint
-	Sid    uint
-	Uid    uint
+	SID    uint
+	UID    uint
 	Path   string `sql:"type:varchar(2048)"`
 	Secret []byte
 }
@@ -65,15 +65,15 @@ type MasterSecrets struct {
 type Groups struct {
 	Id      uint
 	Name    string
-	Kind    string
+	Admin   bool
 	PubKey  []byte
 	PrivKey []byte // Key encrypted with supergroup key
 }
 
 type GroupSecrets struct {
 	Id     uint
-	Gid    uint
-	Sid    uint
+	GID    uint
+	SID    uint
 	Secret []byte
 	Path   string `sql:"type:varchar(2048)"`
 }
@@ -83,7 +83,6 @@ type GroupSecrets struct {
 var tableList = map[string]interface{}{
 	"Acl":           Acl{},
 	"Users":         Users{},
-	"Clients":       Clients{},
 	"UserSecrets":   UserSecrets{},
 	"MasterSecrets": MasterSecrets{},
 	"Groups":        Groups{},
@@ -91,19 +90,19 @@ var tableList = map[string]interface{}{
 }
 
 var compoundIndexes = map[string][]string{
-	"Acl":          []string{"admin_gid", "client_gid"},
-	"UserSecrets":  []string{"Sid", "Uid"},
-	"Groups":       []string{"Name", "Kind"},
-	"GroupSecrets": []string{"Gid", "Sid"},
+	"Acl":          []string{"admin_g_i_d", "client_g_i_d"},
+	"UserSecrets":  []string{"s_i_d", "u_i_d"},
+	"Groups":       []string{"Name", "Admin"},
+	"GroupSecrets": []string{"g_i_d", "s_i_d"},
 }
 
 func Connect(cfg shared.DBSettings) (db gorm.DB, err error) {
 	var uri string
 	if cfg.Host == "localhost" {
-		uri = fmt.Sprintf("%s:%s@/%s", s.User,
+		uri = fmt.Sprintf("%s:%s@/%s", cfg.User,
 			cfg.Pass, cfg.Database)
 	} else {
-		uri = fmt.Sprintf("%s:%s@(%s:%s)/%s", s.User,
+		uri = fmt.Sprintf("%s:%s@(%s:%s)/%s", cfg.User,
 			cfg.Pass, cfg.Host, cfg.Port,
 			cfg.Database)
 	}
@@ -118,7 +117,7 @@ func Connect(cfg shared.DBSettings) (db gorm.DB, err error) {
 	return
 }
 
-func InitDB(db *gorm.DB) error {
+func InitDB(db gorm.DB) error {
 	_, err := db.DB().Exec("create database if not exists skds")
 	if err != nil {
 		return err
@@ -147,22 +146,22 @@ func InitDB(db *gorm.DB) error {
 	return nil
 }
 
-func CreateDefaults(db *gorm.DB) error {
-	defClientGrp := Groups{Id: shared.DefClientGid, Name: "default", Kind: "client"}
+func CreateDefaults(db gorm.DB) error {
+	defClientGrp := Groups{Id: shared.DefClientGID, Name: "default", Admin: false}
 
 	q := db.Create(&defClientGrp)
 	if q.Error != nil {
 		return q.Error
 	}
 
-	defAdminGrp := Groups{Id: shared.DefAdminGid, Name: "default", Kind: "admin"}
+	defAdminGrp := Groups{Id: shared.DefAdminGID, Name: "default", Admin: true}
 
 	q = db.Create(&defAdminGrp)
 	if q.Error != nil {
 		return q.Error
 	}
 
-	superGrp := Groups{Id: shared.SuperGID, Name: "super", Kind: "admin"}
+	superGrp := Groups{Id: shared.SuperGID, Name: "super", Admin: true}
 
 	q = db.Create(&superGrp)
 	if q.Error != nil {
@@ -172,7 +171,7 @@ func CreateDefaults(db *gorm.DB) error {
 	if err != nil {
 		return err
 	}
-	admin := Admins{Gid: config.SuperGID, Name: "Admin", Password: pass}
+	admin := Users{GID: shared.SuperGID, Name: "Admin", Password: pass, Admin: true}
 
 	q = db.Create(&admin)
 	if q.Error != nil {
