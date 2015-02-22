@@ -28,13 +28,14 @@ var (
 )
 
 type Session struct {
-	Password  []byte
-	ServerSig []byte
+	Password   []byte
+	ServerCert []byte
 
 	sessionID  int64
-	sessionKey []byte
+	sessionKey crypto.Binary
 	client     *http.Client
 	tls        *tls.Config
+	serverPath string
 }
 
 type Server struct {
@@ -84,6 +85,8 @@ func (s *Session) New(cfg *Config) error {
 	}
 
 	s.client = &http.Client{Transport: tr}
+	// We use the http scheme as we handle the TLS seperately.
+	s.serverPath = "http://" + cfg.Startup.Address
 
 	return nil
 }
@@ -155,18 +158,17 @@ func customDialer(network, addr string, cfg *Config) (conn net.Conn, err error) 
 }
 
 func checkSig(cfg *Config, sig []byte) (err error) {
-	if cfg.Runtime.ServerSig == nil {
-		cfg.Runtime.ServerSig = new(Binary)
+	if cfg.Runtime.ServerCert == nil {
 
-		if _, err = os.Stat(cfg.Startup.Crypto.ServerSig); os.IsNotExist(err) {
+		if _, err = os.Stat(cfg.Startup.Crypto.ServerCert); os.IsNotExist(err) {
 
-			cfg.Runtime.ServerSig.New(sig)
+			cfg.Runtime.ServerCert = sig
 
-			err = Write(cfg.Runtime.ServerSig, cfg.Startup.Crypto.ServerSig)
+			err = Write(&cfg.Runtime.ServerCert, cfg.Startup.Crypto.ServerCert)
 			return
 		} else {
 
-			err = Read(cfg.Runtime.ServerSig, cfg.Startup.Crypto.ServerSig)
+			err = Read(&cfg.Runtime.ServerCert, cfg.Startup.Crypto.ServerCert)
 			if err != nil {
 				return
 			}
@@ -174,7 +176,7 @@ func checkSig(cfg *Config, sig []byte) (err error) {
 		}
 	}
 
-	if !cfg.Runtime.ServerSig.Compare(sig) {
+	if !cfg.Runtime.ServerCert.Compare(sig) {
 		return errors.New("Server signature does not match")
 	}
 	return nil

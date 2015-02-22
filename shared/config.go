@@ -24,24 +24,26 @@ var DefaultAdminPass = []byte("password")
 
 // Root config object
 type Config struct {
-	Runtime Runtime
-	Startup Startup
-	DB      gorm.DB
-	Session Session
-	Server  Server
+	Runtime Runtime // These are only used at runtime, and never saved to disk
+	Startup Startup // These are stored in the config file
+	DB      gorm.DB // DB interface (only used in server mode)
+	Session Session // Admin/Client transport data
+	Server  Server  // Server transport data
+	Mode    string  // Server|Admin|Client
 }
 
 // Runtime attributes.
 // These should never be written to disk
 type Runtime struct {
-	Log       io.Writer
-	Key       *crypto.TLSKey
-	Cert      *crypto.TLSCert
-	CAKey     *crypto.TLSKey
-	CACert    *crypto.TLSCert
-	CA        *crypto.CertPool
-	Keypair   *crypto.Key
-	ServerSig *Binary
+	Log        io.Writer
+	Key        *crypto.TLSKey
+	Cert       *crypto.TLSCert
+	CAKey      *crypto.TLSKey
+	CACert     *crypto.TLSCert
+	CA         *crypto.CertPool
+	Keypair    *crypto.Key
+	ServerCert crypto.Binary
+	Password   crypto.Binary
 }
 
 // Startup attributes.
@@ -74,7 +76,7 @@ type StartupCrypto struct {
 	CAKey      string
 	PublicKey  string
 	PrivateKey string
-	ServerSig  string
+	ServerCert string
 }
 
 func ReadArgs() (cfg Config, install bool, args []string) {
@@ -85,6 +87,17 @@ func ReadArgs() (cfg Config, install bool, args []string) {
 	flag.Parse()
 	args = flag.Args()
 	return
+}
+
+func (c *Config) Init() {
+	c = new(Config)
+
+	c.Runtime.Key = new(crypto.TLSKey)
+	c.Runtime.Cert = new(crypto.TLSCert)
+	c.Runtime.CAKey = new(crypto.TLSKey)
+	c.Runtime.CACert = new(crypto.TLSCert)
+	c.Runtime.CA = new(crypto.CertPool)
+	c.Runtime.Keypair = new(crypto.Key)
 }
 
 func (s *Startup) Read(file string) (err error) {

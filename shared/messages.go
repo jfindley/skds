@@ -12,16 +12,9 @@ type Key struct {
 	GroupPriv []byte `json:",omitempty"`
 }
 
-type Client struct {
+type User struct {
 	Name     string `json:",omitempty"`
-	Group    string `json:",omitempty"`
-	Password []byte `json:",omitempty"`
-	Key      []byte `json:",omitempty"`
-}
-
-type Admin struct {
-	Name     string `json:",omitempty"`
-	Super    bool   `json:",omitempty"`
+	Admin    bool   `json:",omitempty"`
 	Group    string `json:",omitempty"`
 	Password []byte `json:",omitempty"`
 	Key      []byte `json:",omitempty"`
@@ -39,8 +32,7 @@ type Auth struct {
 
 type Message struct {
 	Key      Key    `json:",omitempty"`
-	Client   Client `json:",omitempty"`
-	Admin    Admin  `json:",omitempty"`
+	User     User   `json:",omitempty"`
 	X509     X509   `json:"x509,omitempty"`
 	Auth     Auth   `json:",omitempty"`
 	Response string `json:",omitempty"`

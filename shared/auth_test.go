@@ -16,6 +16,11 @@ var (
 	invalidPass []byte = []byte("This is not valid")
 )
 
+func init() {
+	cfg = new(Config)
+	cfg.Init()
+}
+
 type testcreds struct {
 	name string
 }
@@ -141,10 +146,6 @@ func TestPool(t *testing.T) {
 		t.Error("Session should not be marked as expired")
 	}
 
-	if crypto.HexDecode(p.Pool[id].SessionKey) == nil {
-		t.Error("Invalid session key")
-	}
-
 	oldKey := p.Pool[id].SessionKey
 	oldTime := p.Pool[id].SessionTime
 
@@ -181,20 +182,20 @@ func TestValidate(t *testing.T) {
 	msg := []byte("test data")
 	fakeMsg := []byte("fake message")
 
-	mac := crypto.NewMAC(p.Pool[id].SessionKey, msg)
-	fakeMac := crypto.NewMAC(p.Pool[id].SessionKey, fakeMsg)
+	mac := crypto.NewMAC(p.Pool[id].SessionKey, "/login", msg)
+	fakeMac := crypto.NewMAC(p.Pool[id].SessionKey, "/login", fakeMsg)
 
-	ok = p.Validate(id, mac, msg)
+	ok = p.Validate(id, mac, "/login", msg)
 	if !ok {
 		t.Error("Message did not validate")
 	}
 
-	ok = p.Validate(id, mac, fakeMsg)
+	ok = p.Validate(id, mac, "/login", fakeMsg)
 	if ok {
 		t.Error("Fake message validated")
 	}
 
-	ok = p.Validate(id, fakeMac, msg)
+	ok = p.Validate(id, fakeMac, "/login", msg)
 	if ok {
 		t.Error("Fake message validated")
 	}

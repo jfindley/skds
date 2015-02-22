@@ -42,30 +42,3 @@ func TestFiles(t *testing.T) {
 		t.Error("Files do not match")
 	}
 }
-
-func TestBinary(t *testing.T) {
-	b1 := new(Binary)
-	b2 := new(Binary)
-
-	testData := []byte("Some test data")
-
-	b1.New(testData)
-
-	data, err := b1.Encode()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(data) == 0 {
-		t.Fatal("Zero bytes encoded")
-	}
-
-	err = b2.Decode(data)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if !b2.Compare(testData) {
-		t.Error("Data does not match")
-	}
-}

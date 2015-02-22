@@ -1,7 +1,6 @@
 package shared
 
 import (
-	"bytes"
 	"crypto/rand"
 	"errors"
 	"io"
@@ -27,7 +26,7 @@ type AuthObject struct {
 	GID         uint
 	Admin       bool
 	Super       bool
-	SessionKey  []byte
+	SessionKey  crypto.Binary
 	SessionTime time.Time
 }
 
@@ -106,9 +105,8 @@ func (s *SessionPool) NextKey(id int64) {
 			return
 		}
 		a := s.Pool[id]
-		newKey := crypto.HexEncode(buf)
-		if bytes.Compare(a.SessionKey, newKey) != 0 {
-			a.SessionKey = newKey
+		if !a.SessionKey.Compare(buf) {
+			a.SessionKey = buf
 			s.Pool[id] = a
 			s.Pool[id].SessionTime = time.Now()
 			break
@@ -117,14 +115,14 @@ func (s *SessionPool) NextKey(id int64) {
 	return
 }
 
-func (s *SessionPool) Validate(id int64, msgMac, message []byte) (ok bool) {
+func (s *SessionPool) Validate(id int64, msgMac string, url string, message []byte) (ok bool) {
 	s.Mu.Lock()
 	defer s.Mu.Unlock()
 	if _, ok = s.Pool[id]; !ok {
 		return
 	}
 	key := s.Pool[id].SessionKey
-	ok = crypto.VerifyMAC(key, msgMac, message)
+	ok = crypto.VerifyMAC(key, msgMac, url, message)
 	if !ok {
 		return
 	}

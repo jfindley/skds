@@ -2,14 +2,12 @@ package shared
 
 import (
 	"bytes"
-	// "crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"net/http"
-	// "strconv"
-	"strings"
+	"strconv"
 
 	"github.com/jfindley/skds/crypto"
 )
@@ -26,7 +24,14 @@ const (
 )
 
 func (s *Session) Get(url string) (resp []Message, err error) {
-	r, err := s.client.Get(fmtUrl(url))
+	request, err := http.NewRequest("GET", s.fmtUrl(url), nil)
+	if err != nil {
+		return
+	}
+
+	s.setHeaders(request, nil)
+
+	r, err := s.client.Do(request)
 	if err != nil {
 		return
 	}
@@ -43,8 +48,21 @@ func (s *Session) Get(url string) (resp []Message, err error) {
 	return readResp(r.Body)
 }
 
-func (s *Session) Post(url string, data []byte) (resp []Message, err error) {
-	r, err := s.client.Post(fmtUrl(url), "application/skds", bytes.NewReader(data))
+func (s *Session) Post(url string, msg Message) (resp []Message, err error) {
+
+	data, err := json.Marshal(&msg)
+	if err != nil {
+		return
+	}
+
+	request, err := http.NewRequest("POST", s.fmtUrl(url), bytes.NewReader(data))
+	if err != nil {
+		return
+	}
+
+	s.setHeaders(request, data)
+
+	r, err := s.client.Do(request)
 	if err != nil {
 		return
 	}
@@ -61,11 +79,43 @@ func (s *Session) Post(url string, data []byte) (resp []Message, err error) {
 	return readResp(r.Body)
 }
 
-// Even though all requests are sent over HTTPS, we force the HTTP scheme
-// here because we use a custom dialer that handles the TLS setup seperately.
+func (s *Session) Login(cfg *Config) (err error) {
+	msg := new(Message)
+	msg.Auth.Name = "test login"
+	msg.Auth.Password = []byte("test password")
 
-func fmtUrl(url string) string {
-	return strings.Replace(url, "https", "http", 1)
+	data, err := json.Marshal(msg)
+	if err != nil {
+		return
+	}
+
+	request, err := http.NewRequest("POST", s.fmtUrl("/login"), bytes.NewReader(data))
+	if err != nil {
+		return
+	}
+
+	s.setHeaders(request, data)
+
+	r, err := s.client.Do(request)
+	if err != nil {
+		return
+	}
+
+	if r.StatusCode != 200 {
+		return fmt.Errorf("%s %d %s\n", "Recieved", r.StatusCode, "response from server")
+	}
+	s.sessionID, err = strconv.ParseInt(r.Header.Get(hdrSession), 10, 64)
+	if err != nil {
+		return
+	}
+	if s.sessionID == 0 {
+		return errors.New("No session ID in response")
+	}
+	s.sessionKey.Decode([]byte(r.Header.Get(hdrKey)))
+	if s.sessionKey == nil {
+		return errors.New("No session key in response")
+	}
+	return
 }
 
 func readResp(r io.Reader) (resp []Message, err error) {
@@ -84,12 +134,31 @@ func readResp(r io.Reader) (resp []Message, err error) {
 	}
 }
 
+func (s *Session) setHeaders(request *http.Request, data []byte) {
+	request.Header.Add(hdrUA, "SKDS version "+SkdsVersion)
+	if data != nil {
+		request.Header.Add(hdrEnc, "application/json")
+		request.ContentLength = int64(len(data))
+	}
+
+	if s.sessionKey != nil {
+		request.Header.Add(hdrSession, strconv.FormatInt(s.sessionID, 10))
+		request.Header.Add(hdrMAC, crypto.NewMAC(s.sessionKey, request.URL.Path, data))
+	}
+	return
+}
+
 func (s *Session) nextKey(r *http.Response) (err error) {
 	if s.sessionID == 0 {
 		return
 	}
-	key := []byte(r.Header.Get(hdrKey))
-	newKey := crypto.HexDecode(key)
+
+	var newKey crypto.Binary
+	err = newKey.DecodeString(r.Header.Get(hdrKey))
+	if err != nil {
+		return
+	}
+
 	if len(newKey) == 0 {
 		return errors.New("Invalid session key in response")
 	}
@@ -100,132 +169,6 @@ func (s *Session) nextKey(r *http.Response) (err error) {
 	return
 }
 
-// // We use an empty interface here to allow sending other things than an SKDS message.
-// func (s *Session) Request(cfg *Config, path string, msg interface{}) (m Message, err error) {
-
-// 	data, err := json.Marshal(msg)
-// 	if err != nil {
-// 		cfg.Log(0, "Error building message")
-// 		return
-// 	}
-// 	cfg.Log(3, "Sending:", fmtData(data))
-
-// 	mac := crypto.NewMAC(s.SessionKey, data)
-
-// 	req, err := http.NewRequest("POST", url(cfg.Startup.Address, path), bytes.NewReader(data))
-// 	if err != nil {
-// 		return
-// 	}
-// 	req.Header.Add(hdrEnc, "application/json")
-// 	req.Header.Add(hdrUA, "SKDS "+cfg.Startup.Version)
-// 	req.Header.Add(hdrSession, strconv.FormatInt(s.SessionID, 10))
-// 	req.Header.Add(hdrMAC, string(mac))
-
-// 	resp, err := s.Client.Do(req)
-// 	if err != nil {
-// 		return
-// 	}
-// 	body, err := ioutil.ReadAll(resp.Body)
-// 	if err != nil {
-// 		return
-// 	}
-// 	err = resp.Body.Close()
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	if len(body) > 0 {
-// 		err = json.Unmarshal(body, &m)
-// 		if err != nil {
-// 			return
-// 		}
-// 	}
-
-// 	cfg.Log(3, "Recieved:", resp.StatusCode, fmtData(body))
-
-// 	if resp.StatusCode != 200 {
-// 		return m, errors.New(fmt.Sprintf("%s (%s)", resp.Status, m.Response))
-// 	}
-
-// 	key := []byte(resp.Header.Get(hdrKey))
-// 	newKey := shared.HexDecode(key)
-
-// 	return
-// }
-
-// func (s *Session) Auth(cfg *Config) (err error) {
-// 	msg := new(Message)
-
-// 	msg.Auth.Name = cfg.Startup.Name
-// 	msg.Auth.Password = s.Password
-
-// 	data, err := json.Marshal(msg)
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	req, err := http.NewRequest("POST", url(cfg.Startup.Address, path), bytes.NewReader(data))
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	req.Header.Add(hdrEnc, "application/json")
-// 	req.Header.Add(hdrUA, "SKDS "+cfg.Startup.Version)
-
-// 	// Only send our public key on first authentication for efficiency.
-// 	if len(cfg.Startup.ServerSignature) == 0 {
-// 		enc, err := x509.MarshalPKIXPublicKey(&cfg.Runtime.Key.PublicKey)
-// 		if err != nil {
-// 			return err
-// 		}
-// 		req.Header.Add(hdrKey, string(shared.HexEncode(enc)))
-// 	}
-
-// 	// As our dialler pins the server certificate, we have a high
-// 	// degree of confidence that our connection is not compromised, and
-// 	// therefore do not require an ECDSA-signed response.
-// 	// As a signed response would likely use the same key as the certificate
-// 	// we pinned, signing would add very little.
-
-// 	resp, err := s.Client.Do(req)
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	if resp.StatusCode != 200 {
-// 		return errors.New("Authentication failed")
-// 	}
-
-// 	err = resp.Body.Close()
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	key := []byte(resp.Header.Get(hdrKey))
-// 	s.SessionKey = shared.HexDecode(key)
-// 	if len(s.SessionKey) == 0 {
-// 		return errors.New("Invalid session key in response")
-// 	}
-
-// 	s.SessionID, err = strconv.ParseInt(resp.Header.Get(hdrSession), 10, 64)
-// 	return
-// }
-
-// func fmtData(data []byte) (out string) {
-// 	var line string
-// 	dataStr := string(data)
-// 	if len(dataStr) > 0 {
-// 		i := strings.Index(dataStr, "\n")
-// 		if i == -1 {
-// 			line = dataStr
-// 		} else {
-// 			line = dataStr[0:i]
-// 		}
-// 		if len(line) > maxLen {
-// 			out = line[0:maxLen] + " [...]"
-// 		} else {
-// 			out = strings.TrimSuffix(line, "\n")
-// 		}
-// 	}
-// 	return
-// }
+func (s *Session) fmtUrl(u string) string {
+	return s.serverPath + u
+}
