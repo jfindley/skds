@@ -24,7 +24,7 @@ const (
 )
 
 func (s *Session) Get(url string) (resp []Message, err error) {
-	request, err := http.NewRequest("GET", s.fmtUrl(url), nil)
+	request, err := http.NewRequest("GET", s.fmtURL(url), nil)
 	if err != nil {
 		return
 	}
@@ -55,7 +55,7 @@ func (s *Session) Post(url string, msg Message) (resp []Message, err error) {
 		return
 	}
 
-	request, err := http.NewRequest("POST", s.fmtUrl(url), bytes.NewReader(data))
+	request, err := http.NewRequest("POST", s.fmtURL(url), bytes.NewReader(data))
 	if err != nil {
 		return
 	}
@@ -89,7 +89,7 @@ func (s *Session) Login(cfg *Config) (err error) {
 		return
 	}
 
-	request, err := http.NewRequest("POST", s.fmtUrl("/login"), bytes.NewReader(data))
+	request, err := http.NewRequest("POST", s.fmtURL("/login"), bytes.NewReader(data))
 	if err != nil {
 		return
 	}
@@ -169,6 +169,6 @@ func (s *Session) nextKey(r *http.Response) (err error) {
 	return
 }
 
-func (s *Session) fmtUrl(u string) string {
+func (s *Session) fmtURL(u string) string {
 	return s.serverPath + u
 }

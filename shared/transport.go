@@ -22,9 +22,9 @@ var ciphers = []uint16{tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256}
 // very large operation, it may be some time before we get a response.
 
 var (
-	tcpTimeout  time.Duration = 5 * time.Second
-	tlsTimeout  time.Duration = 20 * time.Second
-	respTimeout time.Duration = 300 * time.Second
+	tcpTimeout  = 5 * time.Second
+	tlsTimeout  = 20 * time.Second
+	respTimeout = 300 * time.Second
 )
 
 type Session struct {
