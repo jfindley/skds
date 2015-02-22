@@ -14,10 +14,14 @@ import (
 )
 
 const (
-	SkdsVersion  = "0.1-HEAD"
-	DefClientGid = 1
-	DefAdminGid  = 2
-	SuperGid     = 3
+	// Software versin
+	SkdsVersion = "0.1-HEAD"
+	// DefClientGID is the default client group ID
+	DefClientGID = 1
+	// DefAdminGID is the default admin group ID
+	DefAdminGID = 2
+	// SuperGID is the super group ID
+	SuperGID = 3
 )
 
 var DefaultAdminPass = []byte("password")
@@ -118,6 +122,9 @@ func (s *Startup) Write(file string) (err error) {
 	return
 }
 
+// TODO: we're no longer setting most options this way.
+// when logging gets re-written, get rid of this.
+
 // Set options at runtime with an Option method
 type Option func(*Config)
 
@@ -147,185 +154,3 @@ func SetOverrides(c *Config) dynamicOpt {
 		}
 	}
 }
-
-// File handling
-// type File func(*Config, string) error
-
-// func (c *Config) ReadFiles(files ...File) (err error) {
-// 	for _, f := range files {
-// 		err = f(c, "read")
-// 		if err != nil {
-// 			return
-// 		}
-// 	}
-// 	return
-// }
-
-// func (c *Config) WriteFiles(files ...File) (err error) {
-// 	for _, f := range files {
-// 		err = f(c, "write")
-// 		if err != nil {
-// 			return
-// 		}
-// 	}
-// 	return
-// }
-
-// func (c *Config) path(p string) string {
-// 	// If the filename contains '/' treat it as a full path
-// 	if strings.Contains(p, "/") {
-// 		return p
-// 	}
-// 	if c.Startup.Dir[len(c.Startup.Dir)-1:] == "/" {
-// 		return c.Startup.Dir + p
-// 	} else {
-// 		return c.Startup.Dir + "/" + p
-// 	}
-// }
-
-// func CACert() File {
-// 	var data []byte
-// 	return func(c *Config, a string) (err error) {
-// 		switch a {
-// 		case "read":
-// 			data, err = ioutil.ReadFile(c.path(c.Startup.Crypto.CACert))
-// 			if err != nil {
-// 				return
-// 			}
-// 			c.Runtime.CACert, err = shared.CertDecode(data)
-// 			return
-// 		case "write":
-// 			data, err = shared.CertEncode(c.Runtime.CACert)
-// 			if err != nil {
-// 				return
-// 			}
-// 			err = ioutil.WriteFile(c.path(c.Startup.Crypto.CACert), data, 0644)
-// 			return
-// 		default:
-// 			err = errors.New("Invalid method")
-// 			return
-// 		}
-// 	}
-// }
-
-// func Cert() File {
-// 	return func(c *Config, a string) (err error) {
-// 		var data []byte
-// 		switch a {
-// 		case "read":
-// 			data, err = ioutil.ReadFile(c.path(c.Startup.Crypto.Cert))
-// 			if err != nil {
-// 				return
-// 			}
-// 			c.Runtime.Cert, err = shared.CertDecode(data)
-// 			return
-// 		case "write":
-// 			data, err = shared.CertEncode(c.Runtime.Cert)
-// 			if err != nil {
-// 				return
-// 			}
-// 			err = ioutil.WriteFile(c.path(c.Startup.Crypto.Cert), data, 0644)
-// 			return
-// 		default:
-// 			err = errors.New("Invalid method")
-// 			return
-// 		}
-// 	}
-// }
-
-// func CAKey() File {
-// 	return func(c *Config, a string) (err error) {
-// 		var data []byte
-// 		switch a {
-// 		case "read":
-// 			data, err = ioutil.ReadFile(c.path(c.Startup.Crypto.CAKey))
-// 			if err != nil {
-// 				return
-// 			}
-// 			c.Runtime.CAKey, err = shared.KeyDecode(data)
-// 			return
-// 		case "write":
-// 			data, err = shared.KeyEncode(c.Runtime.CAKey)
-// 			if err != nil {
-// 				return
-// 			}
-// 			err = ioutil.WriteFile(c.path(c.Startup.Crypto.CAKey), data, 0600)
-// 			return
-// 		default:
-// 			err = errors.New("Invalid method")
-// 			return
-// 		}
-// 	}
-// }
-
-// func Key() File {
-// 	return func(c *Config, a string) (err error) {
-// 		var data []byte
-// 		switch a {
-// 		case "read":
-// 			data, err = ioutil.ReadFile(c.path(c.Startup.Crypto.Key))
-// 			if err != nil {
-// 				return
-// 			}
-// 			c.Runtime.Key, err = shared.KeyDecode(data)
-// 			return
-// 		case "write":
-// 			data, err = shared.KeyEncode(c.Runtime.Key)
-// 			if err != nil {
-// 				return
-// 			}
-// 			err = ioutil.WriteFile(c.path(c.Startup.Crypto.Key), data, 0600)
-// 			return
-// 		default:
-// 			err = errors.New("Invalid method")
-// 			return
-// 		}
-// 	}
-// }
-
-// func PrivateKey() File {
-// 	return func(c *Config, a string) (err error) {
-// 		var data []byte
-// 		switch a {
-// 		case "read":
-// 			data, err = ioutil.ReadFile(c.path(c.Startup.Crypto.PrivateKey))
-// 			if err != nil {
-// 				return
-// 			}
-// 			key := shared.HexDecode(data)
-// 			crypto.Zero(data)
-// 			c.Runtime.Keypair.SetPriv(key)
-// 			return
-// 		case "write":
-// 			data = shared.HexEncode(c.Runtime.Keypair.Priv[:])
-// 			err = ioutil.WriteFile(c.path(c.Startup.Crypto.PrivateKey), data, 0600)
-// 			return
-// 		default:
-// 			err = errors.New("Invalid method")
-// 			return
-// 		}
-// 	}
-// }
-
-// func PublicKey() File {
-// 	return func(c *Config, a string) (err error) {
-// 		var data []byte
-// 		switch a {
-// 		case "read":
-// 			data, err = ioutil.ReadFile(c.path(c.Startup.Crypto.PublicKey))
-// 			if err != nil {
-// 				return
-// 			}
-// 			key := shared.HexDecode(data)
-// 			c.Runtime.Keypair.New(key, nil)
-// 			return
-// 		case "write":
-// 			data = shared.HexEncode(c.Runtime.Keypair.Pub[:])
-// 			err = ioutil.WriteFile(c.path(c.Startup.Crypto.PublicKey), data, 0644)
-// 			return
-// 		default:
-// 			err = errors.New("Invalid method")
-// 			return
-// 		}
-// 	}
-// }

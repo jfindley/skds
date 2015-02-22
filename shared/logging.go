@@ -6,6 +6,8 @@ import (
 	"os"
 )
 
+// TODO: Re-do this library.  Maybe using a third-party solution.
+
 var prefixes = map[int]string{
 	-1: "",
 	0:  "ERROR: ",

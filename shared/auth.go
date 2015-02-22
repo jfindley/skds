@@ -71,7 +71,7 @@ func auth(cfg *Config, creds Credentials, name string, password []byte) (ok bool
 	a.GID = d.GID
 	a.Admin = d.Admin
 
-	if a.Admin && a.GID == SuperGid {
+	if a.Admin && a.GID == SuperGID {
 		a.Super = true
 	}
 	return

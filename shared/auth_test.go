@@ -29,17 +29,17 @@ func (t *testcreds) Get(*Config) (d DBCreds, err error) {
 	switch t.name {
 	case "super":
 		d.Admin = true
-		d.GID = SuperGid
+		d.GID = SuperGID
 		d.Password, _ = crypto.PasswordHash(validPass)
 		d.UID = 10
 	case "admin":
 		d.Admin = true
-		d.GID = DefAdminGid
+		d.GID = DefAdminGID
 		d.Password, _ = crypto.PasswordHash(validPass)
 		d.UID = 11
 	case "client":
 		d.Admin = false
-		d.GID = DefClientGid
+		d.GID = DefClientGID
 		d.Password, _ = crypto.PasswordHash(validPass)
 		d.UID = 12
 	default:
@@ -65,7 +65,7 @@ func TestSuper(t *testing.T) {
 	if a.UID != 10 {
 		t.Error("UID incorrect")
 	}
-	if a.GID != SuperGid {
+	if a.GID != SuperGID {
 		t.Error("GID incorrect")
 	}
 
@@ -92,7 +92,7 @@ func TestAdmin(t *testing.T) {
 	if a.UID != 11 {
 		t.Error("UID incorrect")
 	}
-	if a.GID != DefAdminGid {
+	if a.GID != DefAdminGID {
 		t.Error("GID incorrect")
 	}
 
@@ -119,7 +119,7 @@ func TestClient(t *testing.T) {
 	if a.UID != 12 {
 		t.Error("UID incorrect")
 	}
-	if a.GID != DefClientGid {
+	if a.GID != DefClientGID {
 		t.Error("GID incorrect")
 	}
 
