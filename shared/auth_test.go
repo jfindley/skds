@@ -201,3 +201,27 @@ func TestValidate(t *testing.T) {
 	}
 
 }
+
+func TestPrune(t *testing.T) {
+	pruneInterval = 1 * time.Millisecond
+	sessionExpiry = 1
+
+	p := new(SessionPool)
+	c := new(testcreds)
+	c.name = "admin"
+
+	go p.Pruner()
+
+	ok, id := p.New(cfg, "admin", validPass, c)
+	if !ok {
+		t.Error("Auth failed")
+	}
+
+	// Enough time for the session to have expired, and the pruner to have
+	// plenty of runtime to remove it.
+	time.Sleep(1050 * time.Millisecond)
+
+	if _, ok := p.Pool[id]; ok {
+		t.Error("Expired entry in pool not pruned")
+	}
+}

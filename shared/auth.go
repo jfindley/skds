@@ -2,7 +2,6 @@ package shared
 
 import (
 	"crypto/rand"
-	"errors"
 	"io"
 	"net/http"
 	"sync"
@@ -11,8 +10,11 @@ import (
 	"github.com/jfindley/skds/crypto"
 )
 
-var authErr = errors.New("Authentication failed")
-var sessionExpiry = 30
+var (
+	// sessionExpiry is measured in seconds.
+	sessionExpiry = 30
+	pruneInterval = 90 * time.Second
+)
 
 type Request struct {
 	Req    *http.Request
@@ -134,7 +136,7 @@ func (s *SessionPool) Validate(id int64, msgMac string, url string, message []by
 
 func (s *SessionPool) Pruner() {
 	for {
-		time.Sleep(time.Second * 90)
+		time.Sleep(pruneInterval)
 		s.Mu.Lock()
 		for id := range s.Pool {
 			if s.expired(id) {
