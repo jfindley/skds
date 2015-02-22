@@ -24,7 +24,9 @@ func TestPasswordHash(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-
+	if len(hash) == 0 {
+		t.Fatal("Zero-length hash returned")
+	}
 	ok, err := PasswordVerify(pass, hash)
 	if err != nil {
 		t.Fatal(err)
@@ -58,9 +60,9 @@ func TestMac(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	mac := NewMAC(key, msg)
+	mac := NewMAC(key, "/path", msg)
 
-	ok := VerifyMAC(key, mac, msg)
+	ok := VerifyMAC(key, mac, "/path", msg)
 	if !ok {
 		t.Error("Message not verified")
 	}
