@@ -1,7 +1,8 @@
-// This is essentially a stub that allows us to generate a simple CA and certificate.
-// Ultimately I'd like to expand this to provide full end to end x509 management, but
-// that can wait for another day.
-
+// Package crypto handles all the cryptographical functions for SKDS.
+// auth.go handles authentication functions.
+// crypto.go handles general purpose encryption/decryption.
+// encoding.go handles encoding and decoding of generic binary data.
+// x509.go handles x509 certificates and ECDSA keys.
 package crypto
 
 import (
@@ -17,36 +18,43 @@ import (
 	"time"
 )
 
+// TLSKey is a ECDSA private key.
 type TLSKey struct {
 	key *ecdsa.PrivateKey
 }
 
+// TLSPubKey is a ECDSA public key.
 type TLSPubKey struct {
 	key *ecdsa.PublicKey
 }
 
+// TLSCert is a x509 certificate.
 type TLSCert struct {
 	cert *x509.Certificate
 }
 
-// We have to maintain our own certs slice as there's no method
-// to get the original certs out of a pool.
+// CertPool is a Certificate pool.
+// We have to maintain our own certs slice as well as the pool object,
+// as there's no method to get the original certs out of a pool.
 type CertPool struct {
 	CA    *x509.CertPool
 	certs []*x509.Certificate
 }
 
+// Generate generates a new TLSKey
 func (t *TLSKey) Generate() (err error) {
 	t.key, err = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	return
 }
 
+// Public creates a public key from a private key
 func (t *TLSKey) Public() TLSPubKey {
 	var pub TLSPubKey
 	pub.key = &t.key.PublicKey
 	return pub
 }
 
+// Encode PEM-encodes a key to be written to disk.
 func (t *TLSKey) Encode() (data []byte, err error) {
 	der, err := x509.MarshalECPrivateKey(t.key)
 	if err != nil {
@@ -59,6 +67,7 @@ func (t *TLSKey) Encode() (data []byte, err error) {
 	return
 }
 
+// Decode reads a PEM-encoded key.
 func (t *TLSKey) Decode(data []byte) (err error) {
 	defer Zero(data)
 	t.key = new(ecdsa.PrivateKey)
@@ -71,6 +80,7 @@ func (t *TLSKey) Decode(data []byte) (err error) {
 	return
 }
 
+// Generate generates a new x509 certificate.
 // For self-signed certs, leave caCert nil
 func (t *TLSCert) Generate(name string, isCa bool, years int, pubKey TLSPubKey,
 	privKey *TLSKey, caCert *TLSCert) (err error) {
@@ -107,6 +117,7 @@ func (t *TLSCert) Generate(name string, isCa bool, years int, pubKey TLSPubKey,
 	return
 }
 
+// Encode PEM-encodes a certificate to be written to disk.
 func (t *TLSCert) Encode() (data []byte, err error) {
 	data = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: t.cert.Raw})
 	if data == nil {
@@ -115,6 +126,7 @@ func (t *TLSCert) Encode() (data []byte, err error) {
 	return
 }
 
+// Decode reads a PEM-encoded certificate.
 func (t *TLSCert) Decode(data []byte) (err error) {
 	t.cert = new(x509.Certificate)
 	pemData, _ := pem.Decode(data)
@@ -126,6 +138,7 @@ func (t *TLSCert) Decode(data []byte) (err error) {
 	return
 }
 
+// TLSCertKeyPair creates a TLS cert object from a cert and key.
 func TLSCertKeyPair(cert *TLSCert, key *TLSKey) (tlsCert []tls.Certificate) {
 	tlsCert = make([]tls.Certificate, 1)
 
@@ -134,14 +147,19 @@ func TLSCertKeyPair(cert *TLSCert, key *TLSKey) (tlsCert []tls.Certificate) {
 	return tlsCert
 }
 
-func (c *CertPool) New(cert *TLSCert) {
+// New creates a new certpool from 1 or more certs
+func (c *CertPool) New(certs ...*TLSCert) {
 	c.CA = x509.NewCertPool()
-	c.certs = make([]*x509.Certificate, 1)
-	c.certs[0] = cert.cert
-	c.CA.AddCert(cert.cert)
+	c.certs = make([]*x509.Certificate, len(certs))
+
+	for _, cert := range certs {
+		c.certs[0] = cert.cert
+		c.CA.AddCert(cert.cert)
+	}
 	return
 }
 
+// Encode PEM-encodes a cert pool to be written to disk.
 func (c *CertPool) Encode() (data []byte, err error) {
 	for i := range c.certs {
 		block := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: c.certs[i].Raw})
@@ -153,8 +171,9 @@ func (c *CertPool) Encode() (data []byte, err error) {
 	return
 }
 
-// We don't use AppendCertsFromPEM here so we can easily add to c.certs as we go
+// Decode reads an encoded cert pool.
 func (c *CertPool) Decode(data []byte) (err error) {
+	// We don't use AppendCertsFromPEM here so we can easily add to c.certs as we go
 	c.CA = x509.NewCertPool()
 	c.certs = make([]*x509.Certificate, 0)
 
