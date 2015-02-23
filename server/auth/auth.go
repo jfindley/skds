@@ -4,8 +4,9 @@ package auth
 
 import (
 	"crypto/rand"
+	"github.com/jinzhu/gorm"
 	"io"
-	"net/http"
+	// "net/http"
 	"sync"
 	"time"
 
@@ -19,12 +20,7 @@ var (
 	pruneInterval = 90 * time.Second
 )
 
-type Request struct {
-	Req    *http.Request
-	Body   []byte
-	Verify bool
-}
-
+//
 type AuthObject struct {
 	Name        string
 	UID         uint
@@ -33,6 +29,20 @@ type AuthObject struct {
 	Super       bool
 	SessionKey  crypto.Binary
 	SessionTime time.Time
+}
+
+func (a *AuthObject) CheckACL(db gorm.DB, objects ...ACL) bool {
+	if a.Super {
+		return true
+	}
+	var ok bool
+	for _, o := range objects {
+		ok = o.Lookup(db, a.UID, a.GID)
+		if !ok {
+			return false
+		}
+	}
+	return ok
 }
 
 type DBCreds struct {
@@ -45,6 +55,11 @@ type DBCreds struct {
 
 type Credentials interface {
 	Get(*shared.Config) (DBCreds, error)
+}
+
+// ACL returns true if the UID/GID pair should be allowed access to the subject.
+type ACL interface {
+	Lookup(gorm.DB, uint, uint) bool
 }
 
 type SessionPool struct {

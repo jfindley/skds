@@ -3,6 +3,7 @@ package auth
 import (
 	"bytes"
 	"errors"
+	"github.com/jinzhu/gorm"
 	"testing"
 	"time"
 
@@ -22,11 +23,23 @@ func init() {
 	cfg.Init()
 }
 
-type testcreds struct {
+type testAcl struct {
+	uid uint
+	gid uint
+}
+
+func (t testAcl) Lookup(db gorm.DB, uid, gid uint) bool {
+	if t.uid == uid && t.gid == gid {
+		return true
+	}
+	return false
+}
+
+type testCreds struct {
 	name string
 }
 
-func (t *testcreds) Get(*shared.Config) (d DBCreds, err error) {
+func (t *testCreds) Get(*shared.Config) (d DBCreds, err error) {
 	switch t.name {
 	case "super":
 		d.Admin = true
@@ -49,8 +62,29 @@ func (t *testcreds) Get(*shared.Config) (d DBCreds, err error) {
 	return
 }
 
+func TestACL(t *testing.T) {
+	var db gorm.DB
+
+	good := testAcl{uid: 1, gid: 1}
+	bad := testAcl{uid: 2, gid: 2}
+	me := AuthObject{UID: 1, GID: 1}
+
+	if !me.CheckACL(db, good) {
+		t.Error("ACL should pass")
+	}
+
+	if me.CheckACL(db, bad) {
+		t.Error("ACL should fail")
+	}
+
+	if me.CheckACL(db, good, bad, good) {
+		t.Error("ACL should fail")
+	}
+
+}
+
 func TestSuper(t *testing.T) {
-	c := new(testcreds)
+	c := new(testCreds)
 	c.name = "super"
 
 	ok, a := auth(cfg, c, "super", validPass)
@@ -77,7 +111,7 @@ func TestSuper(t *testing.T) {
 }
 
 func TestAdmin(t *testing.T) {
-	c := new(testcreds)
+	c := new(testCreds)
 	c.name = "admin"
 
 	ok, a := auth(cfg, c, "admin", validPass)
@@ -104,7 +138,7 @@ func TestAdmin(t *testing.T) {
 }
 
 func TestClient(t *testing.T) {
-	c := new(testcreds)
+	c := new(testCreds)
 	c.name = "client"
 
 	ok, a := auth(cfg, c, "client", validPass)
@@ -132,7 +166,7 @@ func TestClient(t *testing.T) {
 
 func TestPool(t *testing.T) {
 	p := new(SessionPool)
-	c := new(testcreds)
+	c := new(testCreds)
 	c.name = "admin"
 
 	ok, id := p.New(cfg, "admin", validPass, c)
@@ -172,7 +206,7 @@ func TestValidate(t *testing.T) {
 	sessionExpiry = 30
 
 	p := new(SessionPool)
-	c := new(testcreds)
+	c := new(testCreds)
 	c.name = "admin"
 
 	ok, id := p.New(cfg, "admin", validPass, c)
@@ -208,7 +242,7 @@ func TestPrune(t *testing.T) {
 	sessionExpiry = 1
 
 	p := new(SessionPool)
-	c := new(testcreds)
+	c := new(testCreds)
 	c.name = "admin"
 
 	go p.Pruner()
