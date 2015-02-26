@@ -58,34 +58,36 @@ func (u Users) Lookup(db gorm.DB, uid, gid uint) bool {
 }
 
 // Get finds a user by name
-func (u Users) Get(db gorm.DB, name string) error {
-	q := db.Where("name = ?", name).First(&u)
+func (u *Users) Get(db gorm.DB, name string) error {
+	q := db.Where("name = ?", name).First(u)
 	if q.RecordNotFound() {
 		// Make sure to wipe the user structure
-		u = Users{}
+		u = &Users{}
 		return nil
 	}
 	return q.Error
 }
 
 // Functions to statisfy the auth credentials interface.
-func (u Users) GetName() string {
+func (u *Users) GetName() string {
 	return u.Name
 }
 
-func (u Users) GetUID() uint {
+func (u *Users) GetUID() uint {
 	return u.Id
 }
 
-func (u Users) GetGID() uint {
+func (u *Users) GetGID() uint {
 	return u.GID
 }
 
-func (u Users) GetPass() []byte {
-	return u.Password
+func (u *Users) GetPass() crypto.Binary {
+	var pass crypto.Binary
+	pass.Decode(u.Password)
+	return pass
 }
 
-func (u Users) GetAdmin() bool {
+func (u *Users) GetAdmin() bool {
 	return u.Admin
 }
 
@@ -243,7 +245,11 @@ func InitDB(db gorm.DB) error {
 
 func InitTables(db gorm.DB) error {
 	for _, table := range tableList {
-		q := db.CreateTable(table)
+		q := db.DropTableIfExists(table)
+		if q.Error != nil {
+			return q.Error
+		}
+		q = db.CreateTable(table)
 		if q.Error != nil {
 			return q.Error
 		}
