@@ -295,7 +295,7 @@ func NotFound(err error) bool {
 	switch err {
 	case nil:
 		return false
-	case err.Error() == gorm.RecordNotFound.Error():
+	case gorm.RecordNotFound:
 		return true
 	default:
 		return false
