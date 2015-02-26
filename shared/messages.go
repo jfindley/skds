@@ -5,6 +5,7 @@ import (
 	"github.com/jinzhu/gorm"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 
 	"github.com/jfindley/skds/crypto"
 )
@@ -61,17 +62,17 @@ type Request struct {
 	Headers http.Header
 	Body    []byte
 	Session ClientSession
-	Writer  http.ResponseWriter
+	writer  http.ResponseWriter
 }
 
 // New reads the request body and headers from the client request, and sets the
 // response writer.
 func (r *Request) New(req *http.Request, resp http.ResponseWriter) (err error) {
-	r.Writer = resp
+	r.writer = resp
 	r.Headers = req.Header
 	r.Body, err = ioutil.ReadAll(req.Body)
 	if err != nil {
-		http.Error(r.Writer, "Unable to read request", http.StatusBadRequest)
+		http.Error(r.writer, "Unable to read request", http.StatusBadRequest)
 		return
 	}
 	req.Body.Close()
@@ -81,9 +82,13 @@ func (r *Request) New(req *http.Request, resp http.ResponseWriter) (err error) {
 func (r *Request) Parse() (err error) {
 	err = json.Unmarshal(r.Body, &r.Req)
 	if err != nil {
-		// http.Error(r.Writer, "Unable to parse request", http.StatusBadRequest)
+		http.Error(r.writer, "Unable to parse request", http.StatusBadRequest)
 	}
 	return
+}
+
+func (r *Request) SetSession(id int64) {
+	r.writer.Header().Set(hdrSession, strconv.FormatInt(id, 10))
 }
 
 // Reply sends a response to a request.  We never return anything, as there's
@@ -94,7 +99,7 @@ func (r *Request) Reply(code int, messages ...Message) {
 	for _, msg := range messages {
 		data, err := json.Marshal(msg)
 		if err != nil {
-			http.Error(r.Writer, "Error sending response", http.StatusInternalServerError)
+			http.Error(r.writer, "Error sending response", http.StatusInternalServerError)
 			return
 		}
 		body = append(body, data...)
@@ -104,15 +109,15 @@ func (r *Request) Reply(code int, messages ...Message) {
 		key := r.Session.NextKey()
 		enc, err := key.Encode()
 		if err != nil {
-			http.Error(r.Writer, "Error sending response", http.StatusInternalServerError)
+			http.Error(r.writer, "Error sending response", http.StatusInternalServerError)
 			return
 		}
 
-		r.Writer.Header().Set(hdrKey, string(enc))
+		r.writer.Header().Set(hdrKey, string(enc))
 	}
 
-	r.Writer.WriteHeader(code)
+	r.writer.WriteHeader(code)
 
 	// Although this can fail, there's no sensible way of handling it.
-	r.Writer.Write(body)
+	r.writer.Write(body)
 }
