@@ -4,15 +4,13 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/jfindley/skds/config"
 	"github.com/jfindley/skds/crypto"
-	"github.com/jfindley/skds/messages"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
 
 func TestClientGetKey(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -20,7 +18,7 @@ func TestClientGetKey(t *testing.T) {
 	defer cfg.DB.Close()
 
 	authobj.Admin = false
-	authobj.UID = config.DefClientGid
+	authobj.UID = shared.DefClientGID
 
 	secret := new(db.MasterSecrets)
 	secret.Name = "directly assigned secret"
@@ -41,12 +39,12 @@ func TestClientGetKey(t *testing.T) {
 	group.Name = "test group"
 	cfg.DB.Create(group)
 
-	client := new(db.Clients)
+	client := new(db.Users)
 	client.Name = "test client"
-	client.Gid = group.Id
+	client.GID = group.Id
 	client.GroupKey = shared.HexEncode([]byte("group key"))
 
-	clientSecret := new(db.ClientSecrets)
+	clientSecret := new(db.UserSecrets)
 	clientSecret.Path = "/tmp/test1"
 	clientSecret.Sid = sid1
 	clientSecret.Uid = client.Id
@@ -54,7 +52,7 @@ func TestClientGetKey(t *testing.T) {
 	cfg.DB.Create(clientSecret)
 
 	groupSecret := new(db.GroupSecrets)
-	groupSecret.Gid = group.Id
+	groupSecret.GID = group.Id
 	groupSecret.Sid = sid2
 	groupSecret.Secret = shared.HexEncode([]byte("group secret"))
 	cfg.DB.Create(groupSecret)
@@ -70,7 +68,7 @@ func TestClientGetKey(t *testing.T) {
 }
 
 func TestClientDel(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -83,13 +81,13 @@ func TestClientDel(t *testing.T) {
 		t.Fatal("Bad result :", ret, resp.Response)
 	}
 
-	if !cfg.DB.NewRecord(db.Clients{Name: msg.Client.Name}) {
+	if !cfg.DB.NewRecord(db.Users{Name: msg.Client.Name}) {
 		t.Error("Client still exists after delete")
 	}
 }
 
 func TestClientGroup(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -122,7 +120,7 @@ func TestClientGroup(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	client := new(db.Clients)
+	client := new(db.Users)
 	group := new(db.Groups)
 	client.Name = "Test Client"
 	client.Pubkey = shared.HexEncode(clientKey.Pub[:])
@@ -144,7 +142,7 @@ func TestClientGroup(t *testing.T) {
 	}
 
 	// Make sure we can decrypt the group key after assignment with the client key
-	client = new(db.Clients)
+	client = new(db.Users)
 	cfg.DB.Where("name = ?", msg.Client.Name).First(client)
 
 	groupKeyRaw, err := crypto.Decrypt(shared.HexDecode(client.GroupKey), clientKey)
@@ -157,7 +155,7 @@ func TestClientGroup(t *testing.T) {
 }
 
 func TestClientRegister(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -179,11 +177,11 @@ func TestClientRegister(t *testing.T) {
 		t.Fatal("Bad result :", ret, resp.Response)
 	}
 
-	client := new(db.Clients)
+	client := new(db.Users)
 	client.Name = msg.Client.Name
 	cfg.DB.First(client)
 
-	if client.Gid != config.DefClientGid {
+	if client.GID != shared.DefClientGID {
 		t.Error("Client created with wrong GID")
 	}
 
@@ -197,7 +195,7 @@ func TestClientRegister(t *testing.T) {
 }
 
 func TestClientList(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -205,9 +203,9 @@ func TestClientList(t *testing.T) {
 	defer cfg.DB.Close()
 
 	msg.Client.Name = "New Client"
-	client := new(db.Clients)
+	client := new(db.Users)
 	client.Name = msg.Client.Name
-	client.Gid = config.DefClientGid
+	client.GID = shared.DefClientGID
 	cfg.DB.Create(client)
 
 	ret, resp := ClientList(cfg, authobj, msg)

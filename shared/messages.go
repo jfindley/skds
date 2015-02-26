@@ -48,13 +48,18 @@ type Message struct {
 	Response string `json:",omitempty"`
 }
 
+// ACL returns true if the UID/GID pair should be allowed access to the subject.
+type ACL interface {
+	Lookup(gorm.DB, uint, uint) bool
+}
+
 type ClientSession interface {
 	GetName() string
 	GetUID() uint
 	GetGID() uint
 	GetAdmin() bool
 	NextKey() crypto.Binary
-	CheckACL(gorm.DB, ...interface{}) bool
+	CheckACL(gorm.DB, ...ACL) bool
 }
 
 type Request struct {
@@ -87,7 +92,7 @@ func (r *Request) Parse() (err error) {
 	return
 }
 
-func (r *Request) SetSession(id int64) {
+func (r *Request) SetSessionID(id int64) {
 	r.writer.Header().Set(hdrSession, strconv.FormatInt(id, 10))
 }
 

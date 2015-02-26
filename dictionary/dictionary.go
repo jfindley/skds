@@ -8,21 +8,17 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/jfindley/skds/config"
-	"github.com/jfindley/skds/messages"
 	"github.com/jfindley/skds/server/auth"
+	"github.com/jfindley/skds/shared"
 
 	admin "github.com/jfindley/skds/admin/functions"
 	server "github.com/jfindley/skds/server/functions"
 )
 
-// The Serverfn takes a pointer to the config object and a decoded message.
-// It returns a status code and response data.
-// The Adminfn takes a pointer to the config object and the commandline data
-// It returns a response string and an error.
-type ApiFunction struct {
-	Serverfn     func(*config.Config, *auth.AuthObject, messages.Message) (int, messages.Message)
-	Clientfn     func(*config.Config, string, []string) error
+// APIFunc defines an API function.
+type APIFunc struct {
+	Serverfn     func(*shared.Config, shared.Request)         // Function called by the server
+	Adminfn      func(*shared.Config, string, []string) error // Function called by the admin client
 	AuthRequired bool
 	AdminOnly    bool
 	SuperOnly    bool
@@ -38,12 +34,12 @@ type ApiFunction struct {
 // the tree to build the URL for a function.
 
 type Tree struct {
-	Members  map[string]ApiFunction
+	Members  map[string]APIFunc
 	Children map[string]*Tree
 }
 
 var Group = Tree{
-	Members: map[string]ApiFunction{
+	Members: map[string]APIFunc{
 		"assign": AdminGroupAssign,
 		"new":    AdminGroupNew,
 		"delete": AdminGroupDel,
@@ -52,7 +48,7 @@ var Group = Tree{
 }
 
 var Admin = Tree{
-	Members: map[string]ApiFunction{
+	Members: map[string]APIFunc{
 		"password": AdminPass,
 		"new":      AdminNew,
 		"delete":   AdminDel,
@@ -66,7 +62,7 @@ var Admin = Tree{
 }
 
 var Client = Tree{
-	Members: map[string]ApiFunction{
+	Members: map[string]APIFunc{
 		"delete":   ClientDel,
 		"group":    ClientGroup,
 		"list":     ClientList,
@@ -76,7 +72,7 @@ var Client = Tree{
 }
 
 var KeyAdmin = Tree{
-	Members: map[string]ApiFunction{
+	Members: map[string]APIFunc{
 		"assign": KeyAssignAdmin,
 		"remove": KeyRemoveAdmin,
 		"public": KeyPubAdmin,
@@ -86,7 +82,7 @@ var KeyAdmin = Tree{
 }
 
 var KeyClient = Tree{
-	Members: map[string]ApiFunction{
+	Members: map[string]APIFunc{
 		"assign": KeyAssignClient,
 		"remove": KeyRemoveClient,
 		"public": KeyPubClient,
@@ -95,7 +91,7 @@ var KeyClient = Tree{
 }
 
 var KeyGroup = Tree{
-	Members: map[string]ApiFunction{
+	Members: map[string]APIFunc{
 		"assign": KeyAssignGroup,
 		"remove": KeyRemoveGroup,
 		"public": KeyPubGroup,
@@ -104,7 +100,7 @@ var KeyGroup = Tree{
 }
 
 var Key = Tree{
-	Members: map[string]ApiFunction{
+	Members: map[string]APIFunc{
 		"list":   KeyList,
 		"new":    KeyNew,
 		"delete": KeyDel,
@@ -118,7 +114,7 @@ var Key = Tree{
 }
 
 var Dictionary = Tree{
-	Members: map[string]ApiFunction{
+	Members: map[string]APIFunc{
 		"ca":       GetCA,
 		"setup":    Setup,
 		"test":     Test,
@@ -133,25 +129,25 @@ var Dictionary = Tree{
 
 // Misc functions
 
-var GetCA = ApiFunction{
+var GetCA = APIFunc{
 	Serverfn:    server.GetCA,
 	Description: "Display the server CA",
 }
 
-var Test = ApiFunction{
+var Test = APIFunc{
 	Serverfn:    server.Test,
-	Clientfn:    admin.Test,
+	Adminfn:     admin.Test,
 	Description: "Test function",
 }
 
-var TestAuth = ApiFunction{
+var TestAuth = APIFunc{
 	Serverfn:     server.Test,
-	Clientfn:     admin.Test,
+	Adminfn:      admin.Test,
 	AuthRequired: true,
 	Description:  "Test function",
 }
 
-var Setup = ApiFunction{
+var Setup = APIFunc{
 	Serverfn:     server.Setup,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -161,15 +157,15 @@ var Setup = ApiFunction{
 
 // Admin functions
 
-var AdminPass = ApiFunction{
+var AdminPass = APIFunc{
 	Serverfn:     server.AdminPass,
-	Clientfn:     admin.Pass,
+	Adminfn:      admin.Pass,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Change your admin password",
 }
 
-var AdminNew = ApiFunction{
+var AdminNew = APIFunc{
 	Serverfn:     server.AdminNew,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -177,7 +173,7 @@ var AdminNew = ApiFunction{
 	Description:  "Create a new admin user",
 }
 
-var AdminDel = ApiFunction{
+var AdminDel = APIFunc{
 	Serverfn:     server.AdminDel,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -185,7 +181,7 @@ var AdminDel = ApiFunction{
 	Description:  "Delete an admin user",
 }
 
-var AdminSuper = ApiFunction{
+var AdminSuper = APIFunc{
 	Serverfn:     server.AdminSuper,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -193,7 +189,7 @@ var AdminSuper = ApiFunction{
 	Description:  "Change an admin's superuser status",
 }
 
-var AdminPubkey = ApiFunction{
+var AdminPubkey = APIFunc{
 	Serverfn:     server.AdminPubkey,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -201,14 +197,14 @@ var AdminPubkey = ApiFunction{
 	Description:  "Set your pubkey as an admin",
 }
 
-var AdminList = ApiFunction{
+var AdminList = APIFunc{
 	Serverfn:     server.AdminList,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "List all admins",
 }
 
-var AdminGroupNew = ApiFunction{
+var AdminGroupNew = APIFunc{
 	Serverfn:     server.AdminGroupNew,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -216,7 +212,7 @@ var AdminGroupNew = ApiFunction{
 	Description:  "Create a new group",
 }
 
-var AdminGroupDel = ApiFunction{
+var AdminGroupDel = APIFunc{
 	Serverfn:     server.AdminGroupDel,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -224,7 +220,7 @@ var AdminGroupDel = ApiFunction{
 	Description:  "Delete a group",
 }
 
-var AdminGroupList = ApiFunction{
+var AdminGroupList = APIFunc{
 	Serverfn:     server.AdminGroupList,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -232,7 +228,7 @@ var AdminGroupList = ApiFunction{
 	Description:  "list groups",
 }
 
-var AdminGroupAssign = ApiFunction{
+var AdminGroupAssign = APIFunc{
 	Serverfn:     server.AdminGroupAssign,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -242,13 +238,13 @@ var AdminGroupAssign = ApiFunction{
 
 // Client functions
 
-var ClientGetKey = ApiFunction{
+var ClientGetKey = APIFunc{
 	Serverfn:     server.ClientGetKey,
 	AuthRequired: true,
 	Description:  "Download keys assigned to this client",
 }
 
-var ClientDel = ApiFunction{
+var ClientDel = APIFunc{
 	Serverfn:     server.ClientDel,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -256,7 +252,7 @@ var ClientDel = ApiFunction{
 	Description:  "Delete a client",
 }
 
-var ClientGroup = ApiFunction{
+var ClientGroup = APIFunc{
 	Serverfn:     server.ClientGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -264,12 +260,12 @@ var ClientGroup = ApiFunction{
 	Description:  "Change a client's group",
 }
 
-var ClientRegister = ApiFunction{
+var ClientRegister = APIFunc{
 	Serverfn:    server.ClientRegister,
 	Description: "Register a new client",
 }
 
-var ClientList = ApiFunction{
+var ClientList = APIFunc{
 	Serverfn:     server.ClientList,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -278,70 +274,70 @@ var ClientList = ApiFunction{
 
 // Key functions
 
-var KeyList = ApiFunction{
+var KeyList = APIFunc{
 	Serverfn:     server.KeyList,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "list all keys",
 }
 
-var KeyPubClient = ApiFunction{
+var KeyPubClient = APIFunc{
 	Serverfn:     server.KeyPubClient,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Download the public key for a client",
 }
 
-var KeyPubAdmin = ApiFunction{
+var KeyPubAdmin = APIFunc{
 	Serverfn:     server.KeyPubAdmin,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Download the public key for an admin",
 }
 
-var KeySuper = ApiFunction{
+var KeySuper = APIFunc{
 	Serverfn:     server.KeySuper,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Download the public key for the super-group",
 }
 
-var KeyPubGroup = ApiFunction{
+var KeyPubGroup = APIFunc{
 	Serverfn:     server.KeyPubGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Download the public key for a group",
 }
 
-var KeyPrivGroup = ApiFunction{
+var KeyPrivGroup = APIFunc{
 	Serverfn:     server.KeyPrivGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Download the (encrypted with the super-key) private key for a group",
 }
 
-var KeyNew = ApiFunction{
+var KeyNew = APIFunc{
 	Serverfn:     server.KeyNew,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Add a new key",
 }
 
-var KeyDel = ApiFunction{
+var KeyDel = APIFunc{
 	Serverfn:     server.KeyDel,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Delete a key",
 }
 
-var KeyUpdate = ApiFunction{
+var KeyUpdate = APIFunc{
 	Serverfn:     server.KeyUpdate,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Update the data of a secret",
 }
 
-var KeyAssignAdmin = ApiFunction{
+var KeyAssignAdmin = APIFunc{
 	Serverfn:     server.KeyAssignAdmin,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -349,7 +345,7 @@ var KeyAssignAdmin = ApiFunction{
 	Description:  "Assign a key to an admin",
 }
 
-var KeyAssignClient = ApiFunction{
+var KeyAssignClient = APIFunc{
 	Serverfn:     server.KeyAssignClient,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -357,7 +353,7 @@ var KeyAssignClient = ApiFunction{
 	Description:  "Assign a key to a client",
 }
 
-var KeyAssignGroup = ApiFunction{
+var KeyAssignGroup = APIFunc{
 	Serverfn:     server.KeyAssignGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -365,7 +361,7 @@ var KeyAssignGroup = ApiFunction{
 	Description:  "Assign a key to a group",
 }
 
-var KeyRemoveAdmin = ApiFunction{
+var KeyRemoveAdmin = APIFunc{
 	Serverfn:     server.KeyRemoveAdmin,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -373,7 +369,7 @@ var KeyRemoveAdmin = ApiFunction{
 	Description:  "Remove a key from an admin",
 }
 
-var KeyRemoveClient = ApiFunction{
+var KeyRemoveClient = APIFunc{
 	Serverfn:     server.KeyRemoveClient,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -381,7 +377,7 @@ var KeyRemoveClient = ApiFunction{
 	Description:  "Remove a key from a client",
 }
 
-var KeyRemoveGroup = ApiFunction{
+var KeyRemoveGroup = APIFunc{
 	Serverfn:     server.KeyRemoveGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -389,7 +385,7 @@ var KeyRemoveGroup = ApiFunction{
 	Description:  "Remove a key from a group",
 }
 
-var KeyListAdmin = ApiFunction{
+var KeyListAdmin = APIFunc{
 	Serverfn:     server.KeyListAdmin,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -397,7 +393,7 @@ var KeyListAdmin = ApiFunction{
 	Description:  "List all keys for an admin",
 }
 
-var KeyListClient = ApiFunction{
+var KeyListClient = APIFunc{
 	Serverfn:     server.KeyListClient,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -405,7 +401,7 @@ var KeyListClient = ApiFunction{
 	Description:  "List all keys for a client",
 }
 
-var KeyListGroup = ApiFunction{
+var KeyListGroup = APIFunc{
 	Serverfn:     server.KeyListGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
@@ -413,8 +409,8 @@ var KeyListGroup = ApiFunction{
 	Description:  "List all keys for a group",
 }
 
-func (t *Tree) urlMap(base string) map[string]ApiFunction {
-	urls := make(map[string]ApiFunction)
+func (t *Tree) urlMap(base string) map[string]APIFunc {
+	urls := make(map[string]APIFunc)
 	for name, fn := range t.Members {
 		urls[fmt.Sprintf("%s/%s", base, name)] = fn
 	}
@@ -443,7 +439,7 @@ func (t *Tree) descMap(base string) map[string]string {
 	return out
 }
 
-func (t *Tree) URLDict() map[string]ApiFunction {
+func (t *Tree) URLDict() map[string]APIFunc {
 	return t.urlMap("")
 }
 
@@ -460,12 +456,12 @@ func (t *Tree) Docs() {
 	return
 }
 
-func (t *Tree) FindFunc(cfg *config.Config, input []string) error {
+func (t *Tree) FindFunc(cfg *shared.Config, input []string) error {
 	treeref := t
 	var url string
 	for i, in := range input {
 		if _, ok := treeref.Members[in]; ok {
-			if treeref.Members[in].Clientfn == nil {
+			if treeref.Members[in].Adminfn == nil {
 				return errors.New("Sorry, this function is not available currently.  If you feel you need it, please file a bug.")
 			}
 			// Found a valid function, build the URL and run it (with data if present)
@@ -474,7 +470,7 @@ func (t *Tree) FindFunc(cfg *config.Config, input []string) error {
 				data = input[i+1:]
 			}
 			url = fmt.Sprintf("%s/%s", url, in)
-			return treeref.Members[in].Clientfn(cfg, url, data)
+			return treeref.Members[in].Adminfn(cfg, url, data)
 		}
 		if _, ok := treeref.Children[in]; ok {
 			// Found a subtree.  Move treeref.

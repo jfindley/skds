@@ -4,16 +4,14 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/jfindley/skds/config"
 	"github.com/jfindley/skds/crypto"
-	"github.com/jfindley/skds/messages"
 	"github.com/jfindley/skds/server/auth"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
 
 func TestAdminPass(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -27,7 +25,7 @@ func TestAdminPass(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	msg.Admin.Password = testHash
+	msg.User.Password = testHash
 
 	ret, resp := AdminPass(cfg, authobj, msg)
 	if ret != 0 || resp.Response != "OK" {
@@ -42,25 +40,25 @@ func TestAdminPass(t *testing.T) {
 }
 
 func TestAdminNew(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer cfg.DB.Close()
 
-	msg.Admin.Name = "New Admin"
+	msg.User.Name = "New Admin"
 	ret, resp := AdminNew(cfg, authobj, msg)
 	if ret != 0 || resp.Response != "OK" {
 		t.Fatal("Bad result :", ret, resp.Response)
 	}
 
 	// Ensure new admin can log in and is a superadmin
-	ok, a := auth.Admin(cfg, msg.Admin.Name, config.DefaultAdminPass)
+	ok, a := auth.Admin(cfg, msg.User.Name, shared.DefaultAdminPass)
 	if !ok {
 		t.Error("Failed to authenticate new admin")
 	}
-	if a.GID != config.DefAdminGid {
+	if a.GID != shared.DefAdminGID {
 		t.Error("New admin has wrong GID")
 	}
 	if !a.Admin {
@@ -69,18 +67,18 @@ func TestAdminNew(t *testing.T) {
 }
 
 func TestAdminDel(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer cfg.DB.Close()
 
-	admin := new(db.Admins)
+	admin := new(db.Users)
 	admin.Name = "New Admin"
 	cfg.DB.Create(admin)
 
-	msg.Admin.Name = admin.Name
+	msg.User.Name = admin.Name
 	ret, resp := AdminDel(cfg, authobj, msg)
 	if ret != 0 || resp.Response != "OK" {
 		t.Fatal("Bad result :", ret, resp.Response)
@@ -92,18 +90,18 @@ func TestAdminDel(t *testing.T) {
 }
 
 func TestAdminSuper(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer cfg.DB.Close()
 
-	admin := new(db.Admins)
+	admin := new(db.Users)
 	admin.Name = "New Admin"
 	cfg.DB.Create(admin)
 
-	msg.Admin.Name = admin.Name
+	msg.User.Name = admin.Name
 	msg.Key.GroupPriv = []byte("super key")
 	ret, resp := AdminSuper(cfg, authobj, msg)
 	if ret != 0 || resp.Response != "OK" {
@@ -115,45 +113,45 @@ func TestAdminSuper(t *testing.T) {
 		t.Error("Group key does not match")
 	}
 
-	if admin.Gid != config.SuperGid {
+	if admin.GID != shared.SuperGID {
 		t.Error("GID does not match superGID")
 	}
 
 }
 
 func TestAdminPubkey(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer cfg.DB.Close()
 
-	admin := new(db.Admins)
+	admin := new(db.Users)
 	admin.Id = authobj.UID
 	cfg.DB.First(admin)
 
-	msg.Admin.Key = []byte("pub key")
+	msg.User.Key = []byte("pub key")
 	ret, resp := AdminPubkey(cfg, authobj, msg)
 	if ret != 0 || resp.Response != "OK" {
 		t.Fatal("Bad result :", ret, resp.Response)
 	}
 
 	cfg.DB.First(admin)
-	if bytes.Compare(shared.HexDecode(admin.Pubkey), msg.Admin.Key) != 0 {
+	if bytes.Compare(shared.HexDecode(admin.Pubkey), msg.User.Key) != 0 {
 		t.Error("Public key does not match")
 	}
 }
 
 func TestAdminList(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer cfg.DB.Close()
 
-	msg.Admin.Name = "New Admin"
+	msg.User.Name = "New Admin"
 	ret, resp := AdminNew(cfg, authobj, msg)
 	if ret != 0 || resp.Response != "OK" {
 		t.Fatal("Bad result :", ret, resp.Response)
@@ -181,7 +179,7 @@ func TestAdminList(t *testing.T) {
 }
 
 func TestAdminGroupAssign(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -214,7 +212,7 @@ func TestAdminGroupAssign(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	admin := new(db.Admins)
+	admin := new(db.Users)
 	group := new(db.Groups)
 	admin.Name = "Test Admin"
 	admin.Pubkey = shared.HexEncode(adminKey.Pub[:])
@@ -226,8 +224,8 @@ func TestAdminGroupAssign(t *testing.T) {
 	cfg.DB.Create(admin)
 	cfg.DB.Create(group)
 
-	msg.Admin.Name = admin.Name
-	msg.Admin.Group = group.Name
+	msg.User.Name = admin.Name
+	msg.User.Group = group.Name
 	msg.Key.GroupPriv = adminPriv
 
 	ret, resp := AdminGroupAssign(cfg, authobj, msg)
@@ -236,8 +234,8 @@ func TestAdminGroupAssign(t *testing.T) {
 	}
 
 	// Make sure we can decrypt the group key after assignment with the admin key
-	admin = new(db.Admins)
-	cfg.DB.Where("name = ?", msg.Admin.Name).First(admin)
+	admin = new(db.Users)
+	cfg.DB.Where("name = ?", msg.User.Name).First(admin)
 
 	groupKeyRaw, err := crypto.Decrypt(shared.HexDecode(admin.GroupKey), adminKey)
 	if err != nil {
@@ -250,7 +248,7 @@ func TestAdminGroupAssign(t *testing.T) {
 }
 
 func TestAdminGroupNew(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -266,14 +264,14 @@ func TestAdminGroupNew(t *testing.T) {
 	msg.Key.GroupPriv = key.Priv[:]
 	msg.Key.GroupPub = key.Pub[:]
 
-	msg.Admin.Group = "New admin group"
+	msg.User.Group = "New admin group"
 	ret, resp := AdminGroupNew(cfg, authobj, msg)
 	if ret != 0 || resp.Response != "OK" {
 		t.Fatal("Bad result :", ret, resp.Response)
 	}
 
 	group := new(db.Groups)
-	cfg.DB.Where("name = ?", msg.Admin.Group).First(group)
+	cfg.DB.Where("name = ?", msg.User.Group).First(group)
 	if group.Kind != "admin" {
 		t.Error("Group type does not match")
 	}
@@ -284,7 +282,7 @@ func TestAdminGroupNew(t *testing.T) {
 		t.Error("Group pub key does not match")
 	}
 
-	msg.Admin.Group = ""
+	msg.User.Group = ""
 	msg.Client.Group = "New Client Group"
 	ret, resp = AdminGroupNew(cfg, authobj, msg)
 	if ret != 0 || resp.Response != "OK" {
@@ -305,7 +303,7 @@ func TestAdminGroupNew(t *testing.T) {
 }
 
 func TestAdminGroupDel(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -318,16 +316,16 @@ func TestAdminGroupDel(t *testing.T) {
 	group.Kind = "admin"
 	cfg.DB.Create(group)
 
-	groupSecrets.Gid = group.Id
+	groupSecrets.GID = group.Id
 	groupSecrets.Sid = 1
 	cfg.DB.Create(groupSecrets)
 
 	groupSecrets = new(db.GroupSecrets)
-	groupSecrets.Gid = group.Id
+	groupSecrets.GID = group.Id
 	groupSecrets.Sid = 2
 	cfg.DB.Create(groupSecrets)
 
-	msg.Admin.Group = group.Name
+	msg.User.Group = group.Name
 
 	ret, resp := AdminGroupDel(cfg, authobj, msg)
 	if ret != 0 || resp.Response != "OK" {
@@ -346,7 +344,7 @@ func TestAdminGroupDel(t *testing.T) {
 }
 
 func TestAdminGroupList(t *testing.T) {
-	var msg messages.Message
+	var msg shared.Message
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)

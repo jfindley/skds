@@ -33,7 +33,7 @@ type SessionInfo struct {
 
 // CheckACL runs the lookup function of the specified object(s) and
 // returns true if the user has access to all objects specified.
-func (a *SessionInfo) CheckACL(db gorm.DB, objects ...ACL) bool {
+func (a *SessionInfo) CheckACL(db gorm.DB, objects ...shared.ACL) bool {
 	if a.Super {
 		return true
 	}
@@ -84,17 +84,12 @@ func (s *SessionInfo) GetAdmin() bool {
 	return s.Admin
 }
 
-// ACL returns true if the UID/GID pair should be allowed access to the subject.
-type ACL interface {
-	Lookup(gorm.DB, uint, uint) bool
-}
-
 // Credentials is a generic interface to return the stored credentials for a user.
 type Credentials interface {
 	GetName() string
 	GetUID() uint
 	GetGID() uint
-	GetPass() []byte
+	GetPass() crypto.Binary
 	GetAdmin() bool
 }
 
