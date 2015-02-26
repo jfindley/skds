@@ -88,15 +88,17 @@ func (t *TLSCert) Generate(name string, isCa bool, years int, pubKey TLSPubKey,
 	now := time.Now()
 
 	template := x509.Certificate{
-		// Serial must be unique - however there's no practical chance of collision here
+		// Serial must be unique - however there's no practical chance of collision here.
+		// We don't want to make this random, however, so that serials increment when re-issued.
 		SerialNumber: new(big.Int).SetInt64(now.UnixNano()),
 		Subject: pkix.Name{
 			CommonName: name,
 		},
-		NotBefore:    now.Add(-5 * time.Minute).UTC(),
-		NotAfter:     now.AddDate(years, 0, 0).UTC(),
-		SubjectKeyId: []byte{1, 2, 3, 4},
-		KeyUsage:     x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		NotBefore:          now.Add(-5 * time.Minute).UTC(),
+		NotAfter:           now.AddDate(years, 0, 0).UTC(),
+		KeyUsage:           x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		SignatureAlgorithm: x509.ECDSAWithSHA256,
+		// SubjectKeyId:       []byte{1, 2, 3, 4},
 	}
 
 	if isCa {

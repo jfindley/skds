@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"bytes"
+	"crypto/x509"
 	"testing"
 )
 
@@ -141,5 +142,42 @@ func TestCertPool(t *testing.T) {
 
 	if bytes.Compare(c2, p2) != 0 {
 		t.Error("Pool does not match input")
+	}
+}
+
+func TestCertAuthority(t *testing.T) {
+	cakey := new(TLSKey)
+	key := new(TLSKey)
+
+	ca := new(TLSCert)
+	cert := new(TLSCert)
+
+	pool := new(CertPool)
+
+	err := cakey.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = key.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = ca.Generate("ca", true, 2, cakey.Public(), cakey, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pool.New(ca)
+
+	err = cert.Generate("localhost", false, 1, key.Public(), cakey, ca)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = cert.cert.Verify(x509.VerifyOptions{Roots: pool.CA})
+	if err != nil {
+		t.Error(err)
 	}
 }
