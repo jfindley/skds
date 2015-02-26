@@ -26,12 +26,20 @@ func TestConnect(t *testing.T) {
 
 	cfg.DB, err = Connect(cfg.Startup.DB)
 	if err != nil {
-		panic(err)
+		t.Fatal(err)
 	}
 }
 
 func TestInitDB(t *testing.T) {
 	err = InitDB(cfg.DB)
+	if err != nil {
+		t.Error(err)
+	}
+	cfg.DB, err = Connect(cfg.Startup.DB)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = InitTables(cfg.DB)
 	if err != nil {
 		t.Error(err)
 	}
