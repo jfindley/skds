@@ -27,34 +27,48 @@ var (
 	respTimeout = 300 * time.Second
 )
 
-type Session struct {
-	Password   []byte
-	ServerCert []byte
-
-	sessionID  int64
-	sessionKey crypto.Binary
-	client     *http.Client
-	tls        *tls.Config
-	serverPath string
+// Pool is an interface for a session pool.
+// It requires a Validate method, which verifies a Request.
+type Pool interface {
+	Validate(Request) bool
 }
 
-func (s *Session) New(cfg *Config) error {
-	tr := new(http.Transport)
-	tr.TLSHandshakeTimeout = tlsTimeout
-	tr.ResponseHeaderTimeout = respTimeout
+type Server struct {
+	Pool *Pool
+	Mux  *http.ServeMux
 
-	tr.Dial = func(network, addr string) (net.Conn, error) {
-		return customDialer(network, addr, cfg)
+	tls    *tls.Config
+	server *http.Server
+	socket net.Listener
+}
+
+func (s *Server) New(cfg *Config) (err error) {
+	s.Mux = http.NewServeMux()
+	s.server = new(http.Server)
+
+	s.tls = generateTLS(cfg)
+	s.socket, err = tls.Listen("tcp", cfg.Startup.Address, s.tls)
+	if err != nil {
+		return
 	}
 
-	s.client = &http.Client{Transport: tr}
-	// We use the http scheme as we handle the TLS seperately.
-	s.serverPath = "http://" + cfg.Startup.Address
-
-	return nil
+	s.server = new(http.Server)
+	s.server.Addr = cfg.Startup.Address
+	s.server.Handler = s.Mux
+	return
 }
 
-func GenerateTLS(cfg *Config) *tls.Config {
+func (s *Server) Start() {
+	go func() {
+		err := s.server.Serve(s.socket)
+		if err != nil {
+			panic(err)
+		}
+	}()
+	return
+}
+
+func generateTLS(cfg *Config) *tls.Config {
 
 	config := tls.Config{
 		Rand:                   nil, // Use crypto/rand
@@ -73,11 +87,12 @@ func GenerateTLS(cfg *Config) *tls.Config {
 		config.InsecureSkipVerify = false
 		config.RootCAs = cfg.Runtime.CA.CA
 	}
+
 	return &config
 }
 
 func customDialer(network, addr string, cfg *Config) (conn net.Conn, err error) {
-	tlsCfg := GenerateTLS(cfg)
+	tlsCfg := generateTLS(cfg)
 
 	serverName, _, err := net.SplitHostPort(cfg.Startup.Address)
 	if err != nil {

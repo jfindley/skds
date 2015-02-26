@@ -2,10 +2,12 @@ package shared
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"strconv"
 
@@ -22,6 +24,33 @@ const (
 	hdrMAC     = "X-AUTH-MAC"
 	hdrKey     = "X-AUTH-KEY"
 )
+
+type Session struct {
+	Password   []byte
+	ServerCert []byte
+
+	sessionID  int64
+	sessionKey crypto.Binary
+	client     *http.Client
+	tls        *tls.Config
+	serverPath string
+}
+
+func (s *Session) New(cfg *Config) error {
+	tr := new(http.Transport)
+	tr.TLSHandshakeTimeout = tlsTimeout
+	tr.ResponseHeaderTimeout = respTimeout
+
+	tr.Dial = func(network, addr string) (net.Conn, error) {
+		return customDialer(network, addr, cfg)
+	}
+
+	s.client = &http.Client{Transport: tr}
+	// We use the http scheme as we handle the TLS seperately.
+	s.serverPath = "http://" + cfg.Startup.Address
+
+	return nil
+}
 
 func (s *Session) Get(url string) (resp []Message, err error) {
 	request, err := http.NewRequest("GET", s.fmtURL(url), nil)
@@ -118,22 +147,6 @@ func (s *Session) Login(cfg *Config) (err error) {
 	return
 }
 
-func readResp(r io.Reader) (resp []Message, err error) {
-	if r == nil {
-		return
-	}
-	dec := json.NewDecoder(r)
-	for {
-		var m Message
-		if err = dec.Decode(&m); err == io.EOF {
-			return resp, nil
-		} else if err != nil {
-			return
-		}
-		resp = append(resp, m)
-	}
-}
-
 func (s *Session) setHeaders(request *http.Request, data []byte) {
 	request.Header.Add(hdrUA, "SKDS version "+SkdsVersion)
 	if data != nil {
@@ -171,4 +184,20 @@ func (s *Session) nextKey(r *http.Response) (err error) {
 
 func (s *Session) fmtURL(u string) string {
 	return s.serverPath + u
+}
+
+func readResp(r io.Reader) (resp []Message, err error) {
+	if r == nil {
+		return
+	}
+	dec := json.NewDecoder(r)
+	for {
+		var m Message
+		if err = dec.Decode(&m); err == io.EOF {
+			return resp, nil
+		} else if err != nil {
+			return
+		}
+		resp = append(resp, m)
+	}
 }

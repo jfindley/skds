@@ -1,5 +1,14 @@
 package shared
 
+import (
+	"encoding/json"
+	"github.com/jinzhu/gorm"
+	"io/ioutil"
+	"net/http"
+
+	"github.com/jfindley/skds/crypto"
+)
+
 type Key struct {
 	Name      string `json:",omitempty"`
 	Client    string `json:",omitempty"`
@@ -36,4 +45,74 @@ type Message struct {
 	X509     X509   `json:"x509,omitempty"`
 	Auth     Auth   `json:",omitempty"`
 	Response string `json:",omitempty"`
+}
+
+type ClientSession interface {
+	GetName() string
+	GetUID() uint
+	GetGID() uint
+	GetAdmin() bool
+	NextKey() crypto.Binary
+	CheckACL(gorm.DB, ...interface{}) bool
+}
+
+type Request struct {
+	Req     Message
+	Headers http.Header
+	Body    []byte
+	Session ClientSession
+	Writer  http.ResponseWriter
+}
+
+// New reads the request body and headers from the client request, and sets the
+// response writer.
+func (r *Request) New(req *http.Request, resp http.ResponseWriter) (err error) {
+	r.Writer = resp
+	r.Headers = req.Header
+	r.Body, err = ioutil.ReadAll(req.Body)
+	if err != nil {
+		http.Error(r.Writer, "Unable to read request", http.StatusBadRequest)
+		return
+	}
+	req.Body.Close()
+	return
+}
+
+func (r *Request) Parse() (err error) {
+	err = json.Unmarshal(r.Body, &r.Req)
+	if err != nil {
+		// http.Error(r.Writer, "Unable to parse request", http.StatusBadRequest)
+	}
+	return
+}
+
+// Reply sends a response to a request.  We never return anything, as there's
+// no useful handling the server can do if our response fails.
+func (r *Request) Reply(code int, messages ...Message) {
+	var body []byte
+
+	for _, msg := range messages {
+		data, err := json.Marshal(msg)
+		if err != nil {
+			http.Error(r.Writer, "Error sending response", http.StatusInternalServerError)
+			return
+		}
+		body = append(body, data...)
+	}
+
+	if r.Session != nil {
+		key := r.Session.NextKey()
+		enc, err := key.Encode()
+		if err != nil {
+			http.Error(r.Writer, "Error sending response", http.StatusInternalServerError)
+			return
+		}
+
+		r.Writer.Header().Set(hdrKey, string(enc))
+	}
+
+	r.Writer.WriteHeader(code)
+
+	// Although this can fail, there's no sensible way of handling it.
+	r.Writer.Write(body)
 }

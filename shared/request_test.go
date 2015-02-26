@@ -18,14 +18,10 @@ var (
 	cfg *Config
 )
 
-func init() {
-	// httptest doesn't appear to support ECDHE cipher suites
-	ciphers = []uint16{tls.TLS_RSA_WITH_AES_128_CBC_SHA}
-	cfg = new(Config)
-}
-
 func TestGet(t *testing.T) {
-	cfg.Init()
+	cfg = new(Config)
+	// httptest doesn't appear to support ECDHE cipher suites.
+	ciphers = []uint16{tls.TLS_RSA_WITH_AES_128_CBC_SHA}
 
 	cfg.Session.sessionKey = []byte("qwerty1234")
 
@@ -75,7 +71,9 @@ func TestGet(t *testing.T) {
 }
 
 func TestPost(t *testing.T) {
-	cfg.Init()
+	cfg = new(Config)
+	// httptest doesn't appear to support ECDHE cipher suites.
+	ciphers = []uint16{tls.TLS_RSA_WITH_AES_128_CBC_SHA}
 
 	cfg.Session.sessionKey = []byte("qwerty1234")
 
@@ -143,7 +141,9 @@ func TestPost(t *testing.T) {
 }
 
 func TestLogin(t *testing.T) {
-	cfg.Init()
+	cfg = new(Config)
+	// httptest doesn't appear to support ECDHE cipher suites.
+	ciphers = []uint16{tls.TLS_RSA_WITH_AES_128_CBC_SHA}
 
 	cfg.Startup.User = "test login"
 	cfg.Runtime.Password = []byte("test password")

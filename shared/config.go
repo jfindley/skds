@@ -92,17 +92,6 @@ func ReadArgs() (cfg Config, install bool, args []string) {
 	return
 }
 
-func (c *Config) Init() {
-	c = new(Config)
-
-	c.Runtime.Key = new(crypto.TLSKey)
-	c.Runtime.Cert = new(crypto.TLSCert)
-	c.Runtime.CAKey = new(crypto.TLSKey)
-	c.Runtime.CACert = new(crypto.TLSCert)
-	c.Runtime.CA = new(crypto.CertPool)
-	c.Runtime.Keypair = new(crypto.Key)
-}
-
 func (s *Startup) Read(file string) (err error) {
 	path := fmt.Sprintf("%s/%s", s.Dir, file)
 	toml.DecodeFile(path, s)
