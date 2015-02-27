@@ -10,40 +10,29 @@ import (
 )
 
 var (
-	err        error
-	cfg        *shared.Config
-	testPass   []byte
-	testSecret db.MasterSecrets
-	testKey    crypto.Key
-	testAdmin  db.Users
-	authobj    *auth.SessionInfo
+	cfg *shared.Config
 )
 
 func init() {
 	cfg = new(shared.Config)
-	authobj = new(auth.SessionInfo)
 
 	cfg.Startup.DB.Database = "skds_test"
 	cfg.Startup.DB.Host = "localhost"
 	cfg.Startup.DB.User = "root"
-
-	authobj.Admin = true
-	authobj.UID = 1
-	authobj.Super = true
-	authobj.GID = 3
+	cfg.Startup.DB.Driver = "mysql"
 }
 
-func setupDB(cfg *shared.Config) error {
-	err := cfg.DBConnect()
+func setupDB(cfg *shared.Config) (err error) {
+	cfg.DB, err = db.Connect(cfg.Startup.DB)
 	if err != nil {
 		return err
 	}
 
-	err = db.InitDB(cfg)
+	err = InitTables(cfg.DB)
 	if err != nil {
 		return err
 	}
-	err = db.CreateDefaults(cfg)
+	err = db.CreateDefaults(cfg.DB)
 	if err != nil {
 		return err
 	}

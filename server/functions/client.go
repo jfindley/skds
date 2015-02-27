@@ -1,3 +1,11 @@
+/*
+Functions specifies a list of server functions, split out into different files based on API tree.
+Because the description of each function already exists in the dictionary package, until such a time
+as the dictionary is removed, the purpose of a function will be documented in the dictionary package,
+not here.
+We do, however document the message we expect to recieve for each function.  All input messages are
+shared.Message messages.
+*/
 package functions
 
 import (
