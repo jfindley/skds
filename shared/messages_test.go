@@ -27,7 +27,7 @@ func (cb closingBuffer) Close() error {
 
 type mockSession struct{}
 
-func (s *mockSession) CheckACL(db gorm.DB, objects ...interface{}) bool {
+func (s *mockSession) CheckACL(db gorm.DB, objects ...ACL) bool {
 	return true
 }
 
@@ -139,7 +139,7 @@ func TestResponseReply(t *testing.T) {
 		t.Error("Response not 200")
 	}
 
-	resp, err := readResp(rec.Body)
+	resp, err := ReadResp(rec.Body)
 	if err != nil {
 
 	}
@@ -178,7 +178,7 @@ func TestResponseReplyMultiple(t *testing.T) {
 		t.Error("Response not 200")
 	}
 
-	resp, err := readResp(rec.Body)
+	resp, err := ReadResp(rec.Body)
 	if err != nil {
 
 	}

@@ -75,12 +75,14 @@ type Request struct {
 func (r *Request) New(req *http.Request, resp http.ResponseWriter) (err error) {
 	r.writer = resp
 	r.Headers = req.Header
-	r.Body, err = ioutil.ReadAll(req.Body)
-	if err != nil {
-		http.Error(r.writer, "Unable to read request", http.StatusBadRequest)
-		return
+	if req.Body != nil {
+		r.Body, err = ioutil.ReadAll(req.Body)
+		if err != nil {
+			http.Error(r.writer, "Unable to read request", http.StatusBadRequest)
+			return
+		}
+		req.Body.Close()
 	}
-	req.Body.Close()
 	return
 }
 

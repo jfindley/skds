@@ -74,7 +74,7 @@ func (s *Session) Get(url string) (resp []Message, err error) {
 		return
 	}
 
-	return readResp(r.Body)
+	return ReadResp(r.Body)
 }
 
 func (s *Session) Post(url string, msg Message) (resp []Message, err error) {
@@ -105,7 +105,7 @@ func (s *Session) Post(url string, msg Message) (resp []Message, err error) {
 		return
 	}
 
-	return readResp(r.Body)
+	return ReadResp(r.Body)
 }
 
 func (s *Session) Login(cfg *Config) (err error) {
@@ -186,7 +186,8 @@ func (s *Session) fmtURL(u string) string {
 	return s.serverPath + u
 }
 
-func readResp(r io.Reader) (resp []Message, err error) {
+// ReadResp parses a message array from an io.Reader.
+func ReadResp(r io.Reader) (resp []Message, err error) {
 	if r == nil {
 		return
 	}
