@@ -48,12 +48,13 @@ func GroupNew(cfg *shared.Config, r shared.Request) {
 		return
 	}
 
-	if !cfg.DB.NewRecord(group) {
+	q := cfg.DB.Where("name = ? and admin = ?", group.Name, group.Admin).First(&db.Groups{})
+	if !db.NotFound(q.Error) {
 		r.Reply(200, shared.RespMessage("Group already exists"))
 		return
 	}
 
-	q := cfg.DB.Create(group)
+	q = cfg.DB.Create(group)
 	if q.Error != nil {
 		cfg.Log(1, q.Error)
 		r.Reply(500)

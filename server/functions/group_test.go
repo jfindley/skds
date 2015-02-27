@@ -24,11 +24,25 @@ func TestGroupNew(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	req.Req.Key.GroupPriv = key.Priv[:]
 	req.Req.Key.GroupPub = key.Pub[:]
+	req.Req.User.Group = "default"
+	req.Req.User.Admin = true
+
+	GroupNew(cfg, req)
+
+	if resp.Code != 200 {
+		t.Error("Bad response code:", resp.Code)
+	}
+
+	req, resp = respRecorder()
 
 	req.Req.User.Group = "New admin group"
 	req.Req.User.Admin = true
+	req.Req.Key.GroupPriv = key.Priv[:]
+	req.Req.Key.GroupPub = key.Pub[:]
+
 	GroupNew(cfg, req)
 
 	if resp.Code != 204 {
@@ -62,6 +76,26 @@ func TestGroupDel(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer cfg.DB.Close()
+
+	req.Req.User.Group = "default"
+	req.Req.User.Admin = true
+
+	GroupDel(cfg, req)
+	if resp.Code != 400 {
+		t.Error("Bad response code:", resp.Code)
+	}
+
+	req, resp = respRecorder()
+
+	req.Req.User.Group = "no such group"
+	req.Req.User.Admin = true
+
+	GroupDel(cfg, req)
+	if resp.Code != 404 {
+		t.Error("Bad response code:", resp.Code)
+	}
+
+	req, resp = respRecorder()
 
 	group := new(db.Groups)
 	groupSecrets := new(db.GroupSecrets)
