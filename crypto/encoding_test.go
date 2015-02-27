@@ -4,6 +4,15 @@ import (
 	"testing"
 )
 
+func TestNewBinary(t *testing.T) {
+	in := []byte("test")
+	bin := NewBinary(in)
+
+	if !bin.Compare(in) {
+		t.Error("New binary not created correctly")
+	}
+}
+
 func TestBinary(t *testing.T) {
 	var b1, b2 Binary
 

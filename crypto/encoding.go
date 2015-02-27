@@ -16,6 +16,13 @@ import (
 // the wire, or read/written to disk.
 type Binary []byte
 
+// NewBinary creates a new *Binary from a []byte.
+func NewBinary(in []byte) *Binary {
+	b := new(Binary)
+	*b = in
+	return b
+}
+
 // Compare compares binary data in constant time.
 func (b *Binary) Compare(data Binary) bool {
 	if subtle.ConstantTimeCompare(*b, data) != 1 {
