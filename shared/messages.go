@@ -126,3 +126,9 @@ func (r *Request) Reply(code int, messages ...Message) {
 	// Although this can fail, there's no sensible way of handling it.
 	r.writer.Write(body)
 }
+
+// RespMessage creates a message with a given response string.
+func RespMessage(r string) (m Message) {
+	m.Response = r
+	return
+}
