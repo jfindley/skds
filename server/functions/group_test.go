@@ -1,17 +1,17 @@
 package functions
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/jfindley/skds/crypto"
-	"github.com/jfindley/skds/server/auth"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
 
 func TestGroupNew(t *testing.T) {
-	var req shared.Request
+	req, resp := respRecorder()
+	var err error
+
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -20,53 +20,43 @@ func TestGroupNew(t *testing.T) {
 
 	// We don't bother encrypting the private key for this test, it's not required
 	key := new(crypto.Key)
-	err := key.Generate()
+	err = key.Generate()
 	if err != nil {
 		t.Fatal(err)
 	}
-	msg.Key.GroupPriv = key.Priv[:]
-	msg.Key.GroupPub = key.Pub[:]
+	req.Req.Key.GroupPriv = key.Priv[:]
+	req.Req.Key.GroupPub = key.Pub[:]
 
-	msg.User.Group = "New admin group"
-	ret, resp := AdminGroupNew(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
+	req.Req.User.Group = "New admin group"
+	req.Req.User.Admin = true
+	GroupNew(cfg, req)
+
+	if resp.Code != 204 {
+		t.Error("Bad response code:", resp.Code)
 	}
 
 	group := new(db.Groups)
-	cfg.DB.Where("name = ?", msg.User.Group).First(group)
-	if group.Kind != "admin" {
+	cfg.DB.Where("name = ?", req.Req.User.Group).First(group)
+	if group.Admin != true {
 		t.Error("Group type does not match")
 	}
-	if bytes.Compare(shared.HexDecode(group.PrivKey), key.Priv[:]) != 0 {
-		t.Error("Group priv key does not match")
-	}
-	if bytes.Compare(shared.HexDecode(group.PubKey), key.Pub[:]) != 0 {
-		t.Error("Group pub key does not match")
-	}
+	var priv crypto.Binary
+	var pub crypto.Binary
+	priv.Decode(group.PrivKey)
+	pub.Decode(group.PubKey)
 
-	msg.User.Group = ""
-	msg.Client.Group = "New Client Group"
-	ret, resp = AdminGroupNew(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
+	if !priv.Compare(key.Priv[:]) {
+		t.Error("Group privkey does not match")
 	}
-
-	group = new(db.Groups)
-	cfg.DB.Where("name = ?", msg.Client.Group).First(group)
-	if group.Kind != "client" {
-		t.Error("Group type does not match")
-	}
-	if bytes.Compare(shared.HexDecode(group.PrivKey), key.Priv[:]) != 0 {
-		t.Error("Group priv key does not match")
-	}
-	if bytes.Compare(shared.HexDecode(group.PubKey), key.Pub[:]) != 0 {
-		t.Error("Group pub key does not match")
+	if !pub.Compare(key.Pub[:]) {
+		t.Error("Group pubkey does not match")
 	}
 }
 
 func TestGroupDel(t *testing.T) {
-	var req shared.Request
+	req, resp := respRecorder()
+	var err error
+
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -76,23 +66,24 @@ func TestGroupDel(t *testing.T) {
 	group := new(db.Groups)
 	groupSecrets := new(db.GroupSecrets)
 	group.Name = "New admin group"
-	group.Kind = "admin"
+	group.Admin = true
 	cfg.DB.Create(group)
 
 	groupSecrets.GID = group.Id
-	groupSecrets.Sid = 1
+	groupSecrets.SID = 1
 	cfg.DB.Create(groupSecrets)
 
 	groupSecrets = new(db.GroupSecrets)
 	groupSecrets.GID = group.Id
-	groupSecrets.Sid = 2
+	groupSecrets.SID = 2
 	cfg.DB.Create(groupSecrets)
 
-	msg.User.Group = group.Name
+	req.Req.User.Group = group.Name
+	req.Req.User.Admin = true
 
-	ret, resp := AdminGroupDel(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
+	GroupDel(cfg, req)
+	if resp.Code != 204 {
+		t.Error("Bad response code:", resp.Code)
 	}
 
 	q := cfg.DB.First(group, group.Id)
@@ -107,7 +98,9 @@ func TestGroupDel(t *testing.T) {
 }
 
 func TestGroupList(t *testing.T) {
-	var req shared.Request
+	req, resp := respRecorder()
+	var err error
+
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
@@ -116,21 +109,25 @@ func TestGroupList(t *testing.T) {
 
 	group := new(db.Groups)
 	group.Name = "New admin group"
-	group.Kind = "admin"
+	group.Admin = true
 	cfg.DB.Create(group)
 
 	group = new(db.Groups)
 	group.Name = "New client group"
-	group.Kind = "client"
+	group.Admin = false
 	cfg.DB.Create(group)
 
-	ret, resp := AdminGroupList(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
+	GroupList(cfg, req)
+
+	if resp.Code != 200 {
+		t.Error("Bad response code:", resp.Code)
 	}
 
-	// Should list 3 builtin groups plus the 2 we just created
-	if len(resp.ResponseData) != 5 {
-		t.Fatal("Expected 5 results, got", len(resp.ResponseData))
+	msgs, err := shared.ReadResp(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(msgs) != 5 {
+		t.Error("Expected 5 messages")
 	}
 }

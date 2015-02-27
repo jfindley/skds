@@ -3,10 +3,10 @@ package functions
 // This sets up the various common parts for the tests in this package
 
 import (
-	"github.com/jfindley/skds/crypto"
-	"github.com/jfindley/skds/server/auth"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
+	"net/http"
+	"net/http/httptest"
 )
 
 var (
@@ -28,7 +28,7 @@ func setupDB(cfg *shared.Config) (err error) {
 		return err
 	}
 
-	err = InitTables(cfg.DB)
+	err = db.InitTables(cfg.DB)
 	if err != nil {
 		return err
 	}
@@ -37,4 +37,18 @@ func setupDB(cfg *shared.Config) (err error) {
 		return err
 	}
 	return nil
+}
+
+func respRecorder() (shared.Request, *httptest.ResponseRecorder) {
+	var r shared.Request
+
+	req := new(http.Request)
+	rec := httptest.NewRecorder()
+
+	err := r.New(req, rec)
+	if err != nil {
+		panic(err)
+	}
+
+	return r, rec
 }

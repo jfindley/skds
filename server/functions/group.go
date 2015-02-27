@@ -10,7 +10,6 @@ package functions
 
 import (
 	"github.com/jfindley/skds/crypto"
-	"github.com/jfindley/skds/server/auth"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
@@ -36,13 +35,13 @@ func GroupNew(cfg *shared.Config, r shared.Request) {
 	group.Name = r.Req.User.Group
 	group.Admin = r.Req.User.Admin
 
-	group.PubKey, err = crypto.Binary(r.Req.Key.GroupPub).Encode()
+	group.PubKey, err = crypto.NewBinary(r.Req.Key.GroupPub).Encode()
 	if err != nil {
 		cfg.Log(1, err)
 		r.Reply(500)
 		return
 	}
-	group.PrivKey, err = crypto.Binary(r.Req.Key.GroupPriv).Encode()
+	group.PrivKey, err = crypto.NewBinary(r.Req.Key.GroupPriv).Encode()
 	if err != nil {
 		cfg.Log(1, err)
 		r.Reply(500)
@@ -85,7 +84,9 @@ func GroupDel(cfg *shared.Config, r shared.Request) {
 
 	tx := cfg.DB.Begin()
 	if tx.Error != nil {
-		return genericFailure(cfg, tx.Error)
+		cfg.Log(1, tx.Error)
+		r.Reply(500)
+		return
 	}
 	var commit bool
 
@@ -96,7 +97,7 @@ func GroupDel(cfg *shared.Config, r shared.Request) {
 		}
 	}()
 
-	q := tx.Where("name = ? and kind = ?", group.Name, group.Kind).First(group)
+	q := tx.Where("name = ? and admin = ?", group.Name, group.Admin).First(group)
 	if q.RecordNotFound() {
 		r.Reply(404, shared.RespMessage("No such group"))
 		return
