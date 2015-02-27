@@ -40,10 +40,9 @@ type Tree struct {
 
 var Group = Tree{
 	Members: map[string]APIFunc{
-		"assign": AdminGroupAssign,
-		"new":    AdminGroupNew,
-		"delete": AdminGroupDel,
-		"list":   AdminGroupList,
+		"new":    GroupNew,
+		"delete": GroupDel,
+		"list":   GroupList,
 	},
 }
 
@@ -55,6 +54,7 @@ var Admin = Tree{
 		"super":    AdminSuper,
 		"pubkey":   AdminPubkey,
 		"list":     AdminList,
+		"group":    AdminGroupAssign,
 	},
 	Children: map[string]*Tree{
 		"group": &Group,
@@ -64,7 +64,7 @@ var Admin = Tree{
 var Client = Tree{
 	Members: map[string]APIFunc{
 		"delete":   ClientDel,
-		"group":    ClientGroup,
+		"group":    ClientGroupAssign,
 		"list":     ClientList,
 		"register": ClientRegister,
 		"keys":     ClientGetKey,
@@ -158,11 +158,11 @@ var Setup = APIFunc{
 // Admin functions
 
 var AdminPass = APIFunc{
-	Serverfn:     server.AdminPass,
+	Serverfn:     server.UserPass,
 	Adminfn:      admin.Pass,
 	AuthRequired: true,
 	AdminOnly:    true,
-	Description:  "Change your admin password",
+	Description:  "Change your password",
 }
 
 var AdminNew = APIFunc{
@@ -190,11 +190,11 @@ var AdminSuper = APIFunc{
 }
 
 var AdminPubkey = APIFunc{
-	Serverfn:     server.AdminPubkey,
+	Serverfn:     server.UserPubkey,
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
-	Description:  "Set your pubkey as an admin",
+	Description:  "Set your pubkey",
 }
 
 var AdminList = APIFunc{
@@ -204,27 +204,26 @@ var AdminList = APIFunc{
 	Description:  "List all admins",
 }
 
-var AdminGroupNew = APIFunc{
-	Serverfn:     server.AdminGroupNew,
+var GroupNew = APIFunc{
+	Serverfn:     server.GroupNew,
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
 	Description:  "Create a new group",
 }
 
-var AdminGroupDel = APIFunc{
-	Serverfn:     server.AdminGroupDel,
+var GroupDel = APIFunc{
+	Serverfn:     server.GroupDel,
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
 	Description:  "Delete a group",
 }
 
-var AdminGroupList = APIFunc{
-	Serverfn:     server.AdminGroupList,
+var GroupList = APIFunc{
+	Serverfn:     server.GroupList,
 	AuthRequired: true,
 	AdminOnly:    true,
-	SuperOnly:    true,
 	Description:  "list groups",
 }
 
@@ -252,8 +251,8 @@ var ClientDel = APIFunc{
 	Description:  "Delete a client",
 }
 
-var ClientGroup = APIFunc{
-	Serverfn:     server.ClientGroup,
+var ClientGroupAssign = APIFunc{
+	Serverfn:     server.ClientGroupAssign,
 	AuthRequired: true,
 	AdminOnly:    true,
 	AclCheck:     true,
