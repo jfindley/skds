@@ -47,7 +47,11 @@ func (s *mockSession) GetGID() uint {
 	return 3
 }
 
-func (s *mockSession) GetAdmin() bool {
+func (s *mockSession) IsAdmin() bool {
+	return true
+}
+
+func (s *mockSession) IsSuper() bool {
 	return true
 }
 

@@ -57,7 +57,8 @@ type ClientSession interface {
 	GetName() string
 	GetUID() uint
 	GetGID() uint
-	GetAdmin() bool
+	IsAdmin() bool
+	IsSuper() bool
 	NextKey() crypto.Binary
 	CheckACL(gorm.DB, ...ACL) bool
 }
