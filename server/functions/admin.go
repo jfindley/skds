@@ -10,7 +10,6 @@ package functions
 
 import (
 	"github.com/jfindley/skds/crypto"
-	"github.com/jfindley/skds/server/auth"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
@@ -29,12 +28,12 @@ func UserPass(cfg *shared.Config, r shared.Request) {
 
 	enc, err := encrypted.Encode()
 	if err != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(1, err)
 		r.Reply(500)
 		return
 	}
 
-	q := cfg.DB.Model(&db.Users{}).Where("UID = ?", r.Session.GetUID).Update("Password", enc)
+	q := cfg.DB.First(&db.Users{}, r.Session.GetUID()).Update("Password", enc)
 	if q.Error != nil {
 		cfg.Log(1, q.Error)
 		r.Reply(500)
@@ -53,27 +52,21 @@ func AdminNew(cfg *shared.Config, r shared.Request) {
 
 	pass, err := crypto.NewPassword()
 	if err != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(1, err)
 		r.Reply(500)
 		return
 	}
 
-	resp.User.Password, err = pass.Encode()
-	if err != nil {
-		cfg.Log(1, q.Error)
-		r.Reply(500)
-		return
-	}
+	resp.User.Password = pass
 
 	hash, err := crypto.PasswordHash(pass)
 	if err != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(1, err)
 		r.Reply(500)
 		return
 	}
 
 	user.Name = r.Req.User.Name
-	user.GID = shared.DefAdminGID
 	user.Admin = true
 	user.Password, err = hash.Encode()
 	if err != nil {
@@ -113,6 +106,7 @@ User.Name => name
 Key.GroupPriv => Copy of the supergroup private key, encrypted with the public key of the target admin
 */
 func AdminSuper(cfg *shared.Config, r shared.Request) {
+	var err error
 	if r.Req.Key.GroupPriv == nil {
 		r.Reply(400, shared.RespMessage("Encrypted supergroup key not provided"))
 		return
@@ -135,7 +129,7 @@ func AdminSuper(cfg *shared.Config, r shared.Request) {
 	}
 
 	user.GID = shared.SuperGID
-	user.GroupKey, err = crypto.Binary(r.Req.Key.GroupPriv).Encode()
+	user.GroupKey, err = crypto.NewBinary(r.Req.Key.GroupPriv).Encode()
 	if err != nil {
 		cfg.Log(1, err)
 		r.Reply(500)
@@ -156,14 +150,14 @@ func AdminSuper(cfg *shared.Config, r shared.Request) {
 User.Key => public part of local key
 */
 func UserPubkey(cfg *shared.Config, r shared.Request) {
-	enc, err := crypto.Binary(r.Req.User.Key).Encode()
+	enc, err := crypto.NewBinary(r.Req.User.Key).Encode()
 	if err != nil {
 		cfg.Log(1, err)
 		r.Reply(500)
 		return
 	}
 
-	q := cfg.DB.Model(&db.Users{}).Where("UID = ?", r.Session.GetUID).Update("PubKey", enc)
+	q := cfg.DB.First(&db.Users{}, r.Session.GetUID()).Update("PubKey", enc)
 	if q.Error != nil {
 		cfg.Log(1, q.Error)
 		r.Reply(500)

@@ -10,13 +10,12 @@ package functions
 
 import (
 	"github.com/jfindley/skds/crypto"
-	"github.com/jfindley/skds/server/auth"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
 
 func userDel(cfg *shared.Config, r shared.Request, admin bool) {
-	q := cfg.DB.Where("Name = ? and Admin = ?", msg.User.Name, admin).Delete(&db.Users{})
+	q := cfg.DB.Where("Name = ? and Admin = ?", r.Req.User.Name, admin).Delete(&db.Users{})
 	if q.RecordNotFound() {
 		r.Reply(404, shared.RespMessage("No such user"))
 		return
@@ -32,7 +31,9 @@ func userDel(cfg *shared.Config, r shared.Request, admin bool) {
 func userList(cfg *shared.Config, r shared.Request, admin bool) {
 	list := make([]shared.Message, 0)
 
-	rows, err := cfg.DB.Table("users").Select("users.name, groups.name").Where("admin = ?", admin).Joins(
+	rows, err := cfg.DB.Table("users").Select(
+		"users.name, groups.name").Where(
+		"users.admin = ?", admin).Joins(
 		"left join groups on users.gid = groups.id").Rows()
 	if err != nil {
 		cfg.Log(1, err)
@@ -58,6 +59,7 @@ func userList(cfg *shared.Config, r shared.Request, admin bool) {
 // We can't do this on the server as it would involve having the ability to decrypt keys.
 // ACL checking should be done prior to calling this function.
 func userGroupAssign(cfg *shared.Config, r shared.Request, admin bool) {
+	var err error
 	if r.Req.Key.GroupPriv == nil && r.Req.User.Group != "default" {
 		r.Reply(400, shared.RespMessage("No group key provided, unable to assign group"))
 		return
@@ -85,7 +87,7 @@ func userGroupAssign(cfg *shared.Config, r shared.Request, admin bool) {
 	}
 
 	if user.GID == group.Id {
-		r.Reply(200, "User already member of this group")
+		r.Reply(200, shared.RespMessage("User already member of this group"))
 		return
 	}
 
@@ -94,7 +96,7 @@ func userGroupAssign(cfg *shared.Config, r shared.Request, admin bool) {
 	if r.Req.User.Group == "default" {
 		user.GroupKey = nil
 	} else {
-		user.GroupKey, err = crypto.Binary(r.Req.Key.GroupPriv).Encode()
+		user.GroupKey, err = crypto.NewBinary(r.Req.Key.GroupPriv).Encode()
 		if err != nil {
 			cfg.Log(1, err)
 			r.Reply(500)

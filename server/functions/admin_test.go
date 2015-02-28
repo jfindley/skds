@@ -1,373 +1,175 @@
 package functions
 
 import (
-	"bytes"
 	"testing"
 
 	"github.com/jfindley/skds/crypto"
-	"github.com/jfindley/skds/server/auth"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
 
-func TestAdminPass(t *testing.T) {
-	var msg shared.Message
+func TestUserPass(t *testing.T) {
+	req, resp := respRecorder()
+	var err error
+
+	req.Session = session
+
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer cfg.DB.Close()
 
-	// The password is hashed on the client before being sent to the server
 	testPass := []byte("new password string")
-	testHash, err := crypto.PasswordHash(testPass)
+
+	req.Req.User.Password = []byte("new password string")
+
+	UserPass(cfg, req)
+
+	if resp.Code != 204 {
+		t.Error("Bad response code:", resp.Code)
+	}
+
+	var user db.Users
+
+	q := cfg.DB.First(&user, session.UID)
+	if q.Error != nil {
+		t.Fatal(err)
+	}
+
+	var dbHash crypto.Binary
+	err = dbHash.Decode(user.Password)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	msg.User.Password = testHash
-
-	ret, resp := AdminPass(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
-	}
-
-	// Make sure we can auth against the new password
-	ok, _ := auth.Admin(cfg, "admin", testPass)
-	if !ok {
-		t.Error("Failed to authenticate with new password")
+	if ok, err := crypto.PasswordVerify(testPass, dbHash); !ok || err != nil {
+		t.Error("Password not verified")
 	}
 }
 
 func TestAdminNew(t *testing.T) {
-	var msg shared.Message
+	req, resp := respRecorder()
+	var err error
+
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer cfg.DB.Close()
 
-	msg.User.Name = "New Admin"
-	ret, resp := AdminNew(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
+	req.Req.User.Name = "New Admin"
+	req.Req.User.Admin = true
+	AdminNew(cfg, req)
+
+	if resp.Code != 200 {
+		t.Error("Bad response code:", resp.Code)
 	}
 
-	// Ensure new admin can log in and is a superadmin
-	ok, a := auth.Admin(cfg, msg.User.Name, shared.DefaultAdminPass)
-	if !ok {
-		t.Error("Failed to authenticate new admin")
+	if q := cfg.DB.First(&db.Users{Name: "New Admin", Admin: true, GID: shared.DefAdminGID}); q.RecordNotFound() {
+		t.Error("Admin not created in DB")
 	}
-	if a.GID != shared.DefAdminGID {
-		t.Error("New admin has wrong GID")
-	}
-	if !a.Admin {
-		t.Error("New admin created as client")
-	}
-}
 
-func TestAdminDel(t *testing.T) {
-	var msg shared.Message
-	err = setupDB(cfg)
+	msgs, err := shared.ReadResp(resp.Body)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer cfg.DB.Close()
 
-	admin := new(db.Users)
-	admin.Name = "New Admin"
-	cfg.DB.Create(admin)
-
-	msg.User.Name = admin.Name
-	ret, resp := AdminDel(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
+	if len(msgs) != 1 {
+		t.Error("Expected 1 message, got:", len(msgs))
 	}
 
-	if q := cfg.DB.First(admin); !q.RecordNotFound() {
-		t.Error("Admin still exists after delete")
+	m := msgs[0]
+
+	if m.User.Name != "New Admin" {
+		t.Error("Wrong username returned")
+	}
+
+	if m.User.Group != "default" {
+		t.Error("Wrong group returned")
+	}
+
+	if !m.User.Admin {
+		t.Error("Admin bool not set")
+	}
+
+	if len(m.User.Password) != crypto.MinPasswordLen {
+		t.Error("Bad password length")
 	}
 }
 
 func TestAdminSuper(t *testing.T) {
-	var msg shared.Message
+	req, resp := respRecorder()
+	var err error
+
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer cfg.DB.Close()
 
-	admin := new(db.Users)
-	admin.Name = "New Admin"
-	cfg.DB.Create(admin)
+	user := new(db.Users)
+	user.Name = "New Admin"
+	user.Admin = true
+	cfg.DB.Create(user)
 
-	msg.User.Name = admin.Name
-	msg.Key.GroupPriv = []byte("super key")
-	ret, resp := AdminSuper(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
+	req.Req.User.Name = user.Name
+	req.Req.Key.GroupPriv = []byte("super key")
+
+	AdminSuper(cfg, req)
+
+	if resp.Code != 204 {
+		t.Error("Bad response code:", resp.Code)
 	}
 
-	cfg.DB.First(admin)
-	if bytes.Compare(shared.HexDecode(admin.GroupKey), msg.Key.GroupPriv) != 0 {
+	cfg.DB.First(user)
+	var dbKey crypto.Binary
+	err = dbKey.Decode(user.GroupKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !dbKey.Compare(req.Req.Key.GroupPriv) {
 		t.Error("Group key does not match")
 	}
 
-	if admin.GID != shared.SuperGID {
+	if user.GID != shared.SuperGID {
 		t.Error("GID does not match superGID")
 	}
 
 }
 
-func TestAdminPubkey(t *testing.T) {
-	var msg shared.Message
+func TestUserPubkey(t *testing.T) {
+	req, resp := respRecorder()
+	req.Session = session
+	var err error
+
 	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer cfg.DB.Close()
 
-	admin := new(db.Users)
-	admin.Id = authobj.UID
-	cfg.DB.First(admin)
+	req.Req.User.Key = []byte("pub key")
+	UserPubkey(cfg, req)
 
-	msg.User.Key = []byte("pub key")
-	ret, resp := AdminPubkey(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
+	if resp.Code != 204 {
+		t.Error("Bad response code:", resp.Code)
 	}
 
-	cfg.DB.First(admin)
-	if bytes.Compare(shared.HexDecode(admin.Pubkey), msg.User.Key) != 0 {
-		t.Error("Public key does not match")
-	}
-}
+	user := db.Users{Id: session.UID}
 
-func TestAdminList(t *testing.T) {
-	var msg shared.Message
-	err = setupDB(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cfg.DB.Close()
-
-	msg.User.Name = "New Admin"
-	ret, resp := AdminNew(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
-	}
-
-	ret, resp = AdminList(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
-	}
-
-	if len(resp.ResponseData) != 2 {
-		t.Fatal("Expected 2 results, got", len(resp.ResponseData))
-	}
-
-	names := []string{"Admin", "New Admin"}
-	groups := []string{"super", "default"}
-	for i := range resp.ResponseData {
-		if resp.ResponseData[i].Admin.Name != names[i] {
-			t.Error("Wrong name in response")
-		}
-		if resp.ResponseData[i].Admin.Group != groups[i] {
-			t.Error("Wrong group in response")
-		}
-	}
-}
-
-func TestAdminGroupAssign(t *testing.T) {
-	var msg shared.Message
-	err = setupDB(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cfg.DB.Close()
-
-	superKey := new(crypto.Key)
-	groupKey := new(crypto.Key)
-	adminKey := new(crypto.Key)
-
-	err = superKey.Generate()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = groupKey.Generate()
-	if err != nil {
-		t.Fatal(err)
-	}
-	err = adminKey.Generate()
-	if err != nil {
+	q := cfg.DB.First(&user)
+	if q.Error != nil {
 		t.Fatal(err)
 	}
 
-	groupPriv, err := crypto.Encrypt(groupKey.Priv[:], superKey, superKey)
+	var dbKey crypto.Binary
+	err = dbKey.Decode(user.PubKey)
 	if err != nil {
 		t.Fatal(err)
 	}
-	adminPriv, err := crypto.Encrypt(groupKey.Priv[:], superKey, adminKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	admin := new(db.Users)
-	group := new(db.Groups)
-	admin.Name = "Test Admin"
-	admin.Pubkey = shared.HexEncode(adminKey.Pub[:])
-	group.Name = "Test group"
-	group.Kind = "admin"
-	group.PubKey = shared.HexEncode(groupKey.Pub[:])
-	group.PrivKey = shared.HexEncode(groupPriv)
-
-	cfg.DB.Create(admin)
-	cfg.DB.Create(group)
-
-	msg.User.Name = admin.Name
-	msg.User.Group = group.Name
-	msg.Key.GroupPriv = adminPriv
-
-	ret, resp := AdminGroupAssign(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
-	}
-
-	// Make sure we can decrypt the group key after assignment with the admin key
-	admin = new(db.Users)
-	cfg.DB.Where("name = ?", msg.User.Name).First(admin)
-
-	groupKeyRaw, err := crypto.Decrypt(shared.HexDecode(admin.GroupKey), adminKey)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if bytes.Compare(groupKeyRaw, groupKey.Priv[:]) != 0 {
-		t.Error("Decrypted key does not match")
-	}
-
-}
-
-func TestAdminGroupNew(t *testing.T) {
-	var msg shared.Message
-	err = setupDB(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cfg.DB.Close()
-
-	// We don't bother encrypting the private key for this test, it's not required
-	key := new(crypto.Key)
-	err := key.Generate()
-	if err != nil {
-		t.Fatal(err)
-	}
-	msg.Key.GroupPriv = key.Priv[:]
-	msg.Key.GroupPub = key.Pub[:]
-
-	msg.User.Group = "New admin group"
-	ret, resp := AdminGroupNew(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
-	}
-
-	group := new(db.Groups)
-	cfg.DB.Where("name = ?", msg.User.Group).First(group)
-	if group.Kind != "admin" {
-		t.Error("Group type does not match")
-	}
-	if bytes.Compare(shared.HexDecode(group.PrivKey), key.Priv[:]) != 0 {
-		t.Error("Group priv key does not match")
-	}
-	if bytes.Compare(shared.HexDecode(group.PubKey), key.Pub[:]) != 0 {
-		t.Error("Group pub key does not match")
-	}
-
-	msg.User.Group = ""
-	msg.Client.Group = "New Client Group"
-	ret, resp = AdminGroupNew(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
-	}
-
-	group = new(db.Groups)
-	cfg.DB.Where("name = ?", msg.Client.Group).First(group)
-	if group.Kind != "client" {
-		t.Error("Group type does not match")
-	}
-	if bytes.Compare(shared.HexDecode(group.PrivKey), key.Priv[:]) != 0 {
-		t.Error("Group priv key does not match")
-	}
-	if bytes.Compare(shared.HexDecode(group.PubKey), key.Pub[:]) != 0 {
-		t.Error("Group pub key does not match")
-	}
-}
-
-func TestAdminGroupDel(t *testing.T) {
-	var msg shared.Message
-	err = setupDB(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cfg.DB.Close()
-
-	group := new(db.Groups)
-	groupSecrets := new(db.GroupSecrets)
-	group.Name = "New admin group"
-	group.Kind = "admin"
-	cfg.DB.Create(group)
-
-	groupSecrets.GID = group.Id
-	groupSecrets.Sid = 1
-	cfg.DB.Create(groupSecrets)
-
-	groupSecrets = new(db.GroupSecrets)
-	groupSecrets.GID = group.Id
-	groupSecrets.Sid = 2
-	cfg.DB.Create(groupSecrets)
-
-	msg.User.Group = group.Name
-
-	ret, resp := AdminGroupDel(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
-	}
-
-	q := cfg.DB.First(group, group.Id)
-	if !q.RecordNotFound() {
-		t.Error("Group not deleted")
-	}
-
-	q = cfg.DB.First(groupSecrets, group.Id)
-	if !q.RecordNotFound() {
-		t.Error("Group secret not deleted")
-	}
-}
-
-func TestAdminGroupList(t *testing.T) {
-	var msg shared.Message
-	err = setupDB(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cfg.DB.Close()
-
-	group := new(db.Groups)
-	group.Name = "New admin group"
-	group.Kind = "admin"
-	cfg.DB.Create(group)
-
-	group = new(db.Groups)
-	group.Name = "New client group"
-	group.Kind = "client"
-	cfg.DB.Create(group)
-
-	ret, resp := AdminGroupList(cfg, authobj, msg)
-	if ret != 0 || resp.Response != "OK" {
-		t.Fatal("Bad result :", ret, resp.Response)
-	}
-
-	// Should list 3 builtin groups plus the 2 we just created
-	if len(resp.ResponseData) != 5 {
-		t.Fatal("Expected 5 results, got", len(resp.ResponseData))
+	if !dbKey.Compare(req.Req.User.Key) {
+		t.Error("Key does not match")
 	}
 }

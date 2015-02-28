@@ -161,6 +161,7 @@ func TestGroupList(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	// default admin/client groups + super group + two new ones
 	if len(msgs) != 5 {
 		t.Error("Expected 5 messages")
 	}

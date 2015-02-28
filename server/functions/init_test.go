@@ -3,23 +3,33 @@ package functions
 // This sets up the various common parts for the tests in this package
 
 import (
-	"github.com/jfindley/skds/server/db"
-	"github.com/jfindley/skds/shared"
 	"net/http"
 	"net/http/httptest"
+
+	"github.com/jfindley/skds/server/auth"
+	"github.com/jfindley/skds/server/db"
+	"github.com/jfindley/skds/shared"
 )
 
 var (
-	cfg *shared.Config
+	cfg     *shared.Config
+	session *auth.SessionInfo
 )
 
 func init() {
 	cfg = new(shared.Config)
+	session = new(auth.SessionInfo)
 
 	cfg.Startup.DB.Database = "skds_test"
 	cfg.Startup.DB.Host = "localhost"
 	cfg.Startup.DB.User = "root"
 	cfg.Startup.DB.Driver = "mysql"
+
+	session.Name = "admin"
+	session.UID = 1
+	session.GID = 3
+	session.Admin = true
+	session.Super = true
 }
 
 func setupDB(cfg *shared.Config) (err error) {
