@@ -92,7 +92,12 @@ func TestCreateDefaults(t *testing.T) {
 	if admin.Id != 1 {
 		t.Error("Initial admin wrong UID:", admin.Id)
 	}
-	ok, err := crypto.PasswordVerify(shared.DefaultAdminPass, admin.Password)
+	var dbPass crypto.Binary
+	err = dbPass.Decode(admin.Password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ok, err := crypto.PasswordVerify(shared.DefaultAdminPass, dbPass)
 	if err != nil {
 		t.Fatal(err)
 	}

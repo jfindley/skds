@@ -11,34 +11,34 @@ import (
 )
 
 // ACL controls for individual users
-type UserACL struct {
+type UserACLs struct {
 	Id       uint
-	UID      uint `gorm:"column:UID"`
-	GID      uint `gorm:"column:GID"`
-	TargetID uint `gorm:"column:TargetID"`
+	UID      uint `gorm:"column:uid"`
+	GID      uint `gorm:"column:gid"`
+	TargetID uint `gorm:"column:targetid"`
 }
 
-func (_ UserACL) TableName() string {
-	return "UserACL"
+func (_ UserACLs) TableName() string {
+	return "UserACLs"
 }
 
 // ACL controls for groups
-type GroupACL struct {
+type GroupACLs struct {
 	Id       uint
-	UID      uint `gorm:"column:UID"`
-	GID      uint `gorm:"column:GID"`
-	TargetID uint `gorm:"column:TargetID"`
+	UID      uint `gorm:"column:uid"`
+	GID      uint `gorm:"column:gid"`
+	TargetID uint `gorm:"column:targetid"`
 }
 
-func (_ GroupACL) TableName() string {
-	return "GroupACL"
+func (_ GroupACLs) TableName() string {
+	return "GroupACLs"
 }
 
 type Users struct {
 	Id       uint
-	GID      uint   `gorm:"column:GID"`
+	GID      uint   `gorm:"column:gid"`
 	Name     string `sql:"not null;unique"`
-	Pubkey   []byte
+	PubKey   []byte
 	Password []byte
 	GroupKey []byte
 	Admin    bool
@@ -50,7 +50,7 @@ func (_ Users) TableName() string {
 
 // ACL lookup function for users
 func (u Users) Lookup(db gorm.DB, uid, gid uint) bool {
-	q := db.Where("UID = ?, GID = ?, TargetID = ?", uid, gid, u.Id).First(&UserACL{})
+	q := db.Where("UID = ?, GID = ?, TargetID = ?", uid, gid, u.Id).First(&UserACLs{})
 	if q.Error != nil {
 		return false
 	}
@@ -87,8 +87,20 @@ func (u *Users) GetPass() crypto.Binary {
 	return pass
 }
 
-func (u *Users) GetAdmin() bool {
+func (u *Users) IsAdmin() bool {
 	return u.Admin
+}
+
+// Set the default group
+func (u *Users) BeforeCreate() (err error) {
+	if u.GID == 0 {
+		if u.Admin {
+			u.GID = shared.DefAdminGID
+		} else {
+			u.GID = shared.DefClientGID
+		}
+	}
+	return
 }
 
 // The secrets tables bear a little explanation.
@@ -115,8 +127,8 @@ func (u *Users) GetAdmin() bool {
 
 type UserSecrets struct {
 	Id     uint
-	SID    uint   `gorm:"column:SID"`
-	UID    uint   `gorm:"column:UID"`
+	SID    uint   `gorm:"column:sid"`
+	UID    uint   `gorm:"column:uid"`
 	Path   string `sql:"type:varchar(2048)"`
 	Secret []byte
 }
@@ -158,7 +170,7 @@ type Groups struct {
 }
 
 func (g Groups) Lookup(db gorm.DB, uid, gid uint) bool {
-	q := db.Where("UID = ?, GID = ?, TargetID = ?", uid, gid, g.Id).First(&GroupACL{})
+	q := db.Where("UID = ?, GID = ?, TargetID = ?", uid, gid, g.Id).First(&GroupACLs{})
 	if q.Error != nil {
 		return false
 	}
@@ -171,8 +183,8 @@ func (_ Groups) TableName() string {
 
 type GroupSecrets struct {
 	Id     uint
-	GID    uint `gorm:"column:GID"`
-	SID    uint `gorm:"column:SID"`
+	GID    uint `gorm:"column:gid"`
+	SID    uint `gorm:"column:sid"`
 	Secret []byte
 	Path   string `sql:"type:varchar(2048)"`
 }
@@ -184,7 +196,8 @@ func (_ GroupSecrets) TableName() string {
 // A list of all DB tables
 
 var tableList = map[string]interface{}{
-	"UserACL":       UserACL{},
+	"UserACLs":      UserACLs{},
+	"GroupACLs":     GroupACLs{},
 	"Users":         Users{},
 	"UserSecrets":   UserSecrets{},
 	"MasterSecrets": MasterSecrets{},
@@ -288,7 +301,11 @@ func CreateDefaults(db gorm.DB) error {
 	if err != nil {
 		return err
 	}
-	admin := Users{GID: shared.SuperGID, Name: "Admin", Password: pass, Admin: true}
+	enc, err := pass.Encode()
+	if err != nil {
+		return err
+	}
+	admin := Users{GID: shared.SuperGID, Name: "Admin", Password: enc, Admin: true}
 
 	q = db.Create(&admin)
 	if q.Error != nil {
