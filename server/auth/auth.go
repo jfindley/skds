@@ -80,8 +80,12 @@ func (s *SessionInfo) GetGID() uint {
 	return s.GID
 }
 
-func (s *SessionInfo) GetAdmin() bool {
+func (s *SessionInfo) IsAdmin() bool {
 	return s.Admin
+}
+
+func (s *SessionInfo) IsSuper() bool {
+	return s.Super
 }
 
 // Credentials is a generic interface to return the stored credentials for a user.
@@ -90,7 +94,7 @@ type Credentials interface {
 	GetUID() uint
 	GetGID() uint
 	GetPass() crypto.Binary
-	GetAdmin() bool
+	IsAdmin() bool
 }
 
 // Auth verifies a password avainst a credentials object.
@@ -110,7 +114,7 @@ func Auth(creds Credentials, pass []byte) (ok bool, sess *SessionInfo) {
 	sess.Name = creds.GetName()
 	sess.UID = creds.GetUID()
 	sess.GID = creds.GetGID()
-	sess.Admin = creds.GetAdmin()
+	sess.Admin = creds.IsAdmin()
 	if sess.Admin && sess.GID == shared.SuperGID {
 		sess.Super = true
 	}

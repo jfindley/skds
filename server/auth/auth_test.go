@@ -36,8 +36,9 @@ type testCreds struct {
 	name  string
 	uid   uint
 	gid   uint
-	pass  []byte
+	pass  crypto.Binary
 	admin bool
+	super bool
 }
 
 func (t testCreds) GetName() string {
@@ -52,12 +53,16 @@ func (t testCreds) GetGID() uint {
 	return t.gid
 }
 
-func (t testCreds) GetPass() []byte {
+func (t testCreds) GetPass() crypto.Binary {
 	return t.pass
 }
 
-func (t testCreds) GetAdmin() bool {
+func (t testCreds) IsAdmin() bool {
 	return t.admin
+}
+
+func (t testCreds) IsSuper() bool {
+	return t.super
 }
 
 func TestACL(t *testing.T) {
