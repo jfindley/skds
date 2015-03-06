@@ -16,7 +16,6 @@ type APIFunc struct {
 	AuthRequired bool
 	AdminOnly    bool
 	SuperOnly    bool
-	AclCheck     bool
 	Description  string
 }
 
@@ -238,7 +237,6 @@ var SecretAssignGroup = APIFunc{
 	Serverfn:     server.SecretAssignGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
-	AclCheck:     true,
 	Description:  "Assign a key to a group",
 }
 
@@ -254,7 +252,6 @@ var SecretRemoveGroup = APIFunc{
 	Serverfn:     server.SecretRemoveGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
-	AclCheck:     true,
 	Description:  "Remove a key from a group",
 }
 
@@ -262,7 +259,6 @@ var SecretListUser = APIFunc{
 	Serverfn:     server.SecretListUser,
 	AuthRequired: true,
 	AdminOnly:    true,
-	AclCheck:     true,
 	Description:  "List all keys for a user",
 }
 
@@ -270,6 +266,5 @@ var SecretListGroup = APIFunc{
 	Serverfn:     server.SecretListGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
-	AclCheck:     true,
 	Description:  "List all keys for a group",
 }
