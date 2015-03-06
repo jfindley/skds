@@ -17,7 +17,7 @@ type Key struct {
 	Path      string `json:",omitempty"`
 	Key       []byte `json:",omitempty"`
 	Secret    []byte `json:",omitempty"`
-	Userkey   []byte `json:",omitempty"`
+	UserKey   []byte `json:",omitempty"`
 	GroupPub  []byte `json:",omitempty"`
 	GroupPriv []byte `json:",omitempty"`
 }
