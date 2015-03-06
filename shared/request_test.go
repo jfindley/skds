@@ -26,7 +26,7 @@ func TestGet(t *testing.T) {
 	cfg.Session.sessionKey = []byte("qwerty1234")
 
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		msgMac := r.Header.Get(hdrMAC)
+		msgMac := r.Header.Get(HdrMAC)
 
 		if !crypto.VerifyMAC(cfg.Session.sessionKey, msgMac, r.RequestURI, nil) {
 
@@ -99,7 +99,7 @@ func TestPost(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		msgMac := r.Header.Get(hdrMAC)
+		msgMac := r.Header.Get(HdrMAC)
 
 		switch {
 
@@ -176,7 +176,7 @@ func TestLogin(t *testing.T) {
 			w.WriteHeader(http.StatusForbidden)
 
 		default:
-			w.Header().Set(hdrSession, "1")
+			w.Header().Set(HdrSession, "1")
 			w.WriteHeader(200)
 		}
 

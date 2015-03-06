@@ -20,9 +20,9 @@ var maxLen = 200
 const (
 	hdrEnc     = "Content-Encoding"
 	hdrUA      = "User-Agent"
-	hdrSession = "Session-ID"
-	hdrMAC     = "X-AUTH-MAC"
-	hdrKey     = "X-AUTH-KEY"
+	HdrSession = "Session-ID"
+	HdrMAC     = "X-AUTH-MAC"
+	HdrKey     = "X-AUTH-KEY"
 )
 
 type Session struct {
@@ -133,14 +133,14 @@ func (s *Session) Login(cfg *Config) (err error) {
 	if r.StatusCode != 200 {
 		return fmt.Errorf("%s %d %s\n", "Recieved", r.StatusCode, "response from server")
 	}
-	s.sessionID, err = strconv.ParseInt(r.Header.Get(hdrSession), 10, 64)
+	s.sessionID, err = strconv.ParseInt(r.Header.Get(HdrSession), 10, 64)
 	if err != nil {
 		return
 	}
 	if s.sessionID == 0 {
 		return errors.New("No session ID in response")
 	}
-	s.sessionKey.Decode([]byte(r.Header.Get(hdrKey)))
+	s.sessionKey.Decode([]byte(r.Header.Get(HdrKey)))
 	if s.sessionKey == nil {
 		return errors.New("No session key in response")
 	}
@@ -155,8 +155,8 @@ func (s *Session) setHeaders(request *http.Request, data []byte) {
 	}
 
 	if s.sessionKey != nil {
-		request.Header.Add(hdrSession, strconv.FormatInt(s.sessionID, 10))
-		request.Header.Add(hdrMAC, crypto.NewMAC(s.sessionKey, request.URL.Path, data))
+		request.Header.Add(HdrSession, strconv.FormatInt(s.sessionID, 10))
+		request.Header.Add(HdrMAC, crypto.NewMAC(s.sessionKey, request.URL.Path, data))
 	}
 	return
 }
@@ -167,7 +167,7 @@ func (s *Session) nextKey(r *http.Response) (err error) {
 	}
 
 	var newKey crypto.Binary
-	err = newKey.DecodeString(r.Header.Get(hdrKey))
+	err = newKey.DecodeString(r.Header.Get(HdrKey))
 	if err != nil {
 		return
 	}

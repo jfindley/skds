@@ -96,7 +96,7 @@ func (r *Request) Parse() (err error) {
 }
 
 func (r *Request) SetSessionID(id int64) {
-	r.writer.Header().Set(hdrSession, strconv.FormatInt(id, 10))
+	r.writer.Header().Set(HdrSession, strconv.FormatInt(id, 10))
 }
 
 // Reply sends a response to a request.  We never return anything, as there's
@@ -121,7 +121,7 @@ func (r *Request) Reply(code int, messages ...Message) {
 			return
 		}
 
-		r.writer.Header().Set(hdrKey, string(enc))
+		r.writer.Header().Set(HdrKey, string(enc))
 	}
 
 	r.writer.WriteHeader(code)

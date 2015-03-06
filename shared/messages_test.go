@@ -156,7 +156,7 @@ func TestResponseReply(t *testing.T) {
 		t.Error("Message sent does not match")
 	}
 
-	if len(rec.Header().Get(hdrKey)) == 0 {
+	if len(rec.Header().Get(HdrKey)) == 0 {
 		t.Error("Missing session key header")
 	}
 }
