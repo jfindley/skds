@@ -6,6 +6,9 @@ import (
 	"crypto/rand"
 	"github.com/jinzhu/gorm"
 	"io"
+	"io/ioutil"
+	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
@@ -145,20 +148,45 @@ func (s *SessionPool) Get(id int64) (sess *SessionInfo) {
 	return s.Pool[id]
 }
 
-// Validate checks that a message belongs to a session.
-func (s *SessionPool) Validate(id int64, msgMac string, url string, message []byte) (ok bool) {
+// Validate checks that a message belongs to a session, and returns the session ID and request body.
+// func (s *SessionPool) Validate(id int64, msgMac string, url string, message []byte) (ok bool) {
+func (s *SessionPool) Validate(r *http.Request) (ok bool, id int64, body []byte) {
+	msgMac := r.Header.Get(shared.HdrMAC)
+
+	session := r.Header.Get(shared.HdrSession)
+	if msgMac == "" || session == "" {
+		return
+	}
+	id, err := strconv.ParseInt(session, 10, 64)
+	if err != nil {
+		return
+	}
+
+	body, err = ioutil.ReadAll(r.Body)
+	if err != nil {
+		return
+	}
+
+	err = r.Body.Close()
+	if err != nil {
+		return
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
 	if _, ok = s.Pool[id]; !ok {
 		return
 	}
+
 	key := s.Pool[id].SessionKey
-	ok = crypto.VerifyMAC(key, msgMac, url, message)
+	ok = crypto.VerifyMAC(key, msgMac, r.RequestURI, body)
 	if !ok {
 		return
 	}
+
 	if s.expired(id) {
-		return false
+		ok = false
 	}
 	return
 }

@@ -3,6 +3,8 @@ package auth
 import (
 	"bytes"
 	"github.com/jinzhu/gorm"
+	"net/http"
+	"strconv"
 	"testing"
 	"time"
 
@@ -15,6 +17,15 @@ var (
 	validPass   = []byte("This is valid")
 	invalidPass = []byte("This is not valid")
 )
+
+type closingBuffer struct {
+	*bytes.Buffer
+}
+
+func (cb closingBuffer) Close() error {
+	crypto.Zero(cb.Bytes())
+	return nil
+}
 
 func init() {
 	cfg = new(shared.Config)
@@ -184,27 +195,57 @@ func TestValidate(t *testing.T) {
 		t.Error(err)
 	}
 
-	msg := []byte("test data")
-	fakeMsg := []byte("fake message")
+	// Validate a POST request
+	testData := []byte(`{"Request":"Test"}`)
 
-	mac := crypto.NewMAC(p.Get(id).SessionKey, "/login", msg)
-	fakeMac := crypto.NewMAC(p.Get(id).SessionKey, "/login", fakeMsg)
+	in := &closingBuffer{bytes.NewBuffer(testData)}
+	req := new(http.Request)
+	req.Body = *in
 
-	ok := p.Validate(id, mac, "/login", msg)
+	req.RequestURI = "/test/request"
+
+	mac := crypto.NewMAC(p.Pool[id].SessionKey, "/test/request", testData)
+
+	req.Header = http.Header(make(map[string][]string))
+	req.Header.Add(shared.HdrMAC, mac)
+	req.Header.Add(shared.HdrSession, strconv.FormatInt(id, 10))
+
+	ok, sid, body := p.Validate(req)
 	if !ok {
-		t.Error("Message did not validate")
+		t.Fatal("Validation failed")
+	}
+	if sid != id {
+		t.Error("Wrong session ID")
+	}
+	if bytes.Compare(body, testData) != 0 {
+		t.Error("Body does not match")
 	}
 
-	ok = p.Validate(id, mac, "/login", fakeMsg)
-	if ok {
-		t.Error("Fake message validated")
-	}
+	// Validate a GET request
+	testData = []byte(`{"Request":"Test"}`)
 
-	ok = p.Validate(id, fakeMac, "/login", msg)
-	if ok {
-		t.Error("Fake message validated")
-	}
+	in = &closingBuffer{bytes.NewBuffer(testData)}
+	req = new(http.Request)
+	req.Body = *in
 
+	req.RequestURI = "/test/request"
+
+	mac = crypto.NewMAC(p.Pool[id].SessionKey, "/test/request", testData)
+
+	req.Header = http.Header(make(map[string][]string))
+	req.Header.Add(shared.HdrMAC, mac)
+	req.Header.Add(shared.HdrSession, strconv.FormatInt(id, 10))
+
+	ok, sid, body = p.Validate(req)
+	if !ok {
+		t.Fatal("Validation failed")
+	}
+	if sid != id {
+		t.Error("Wrong session ID")
+	}
+	if bytes.Compare(body, testData) != 0 {
+		t.Error("Body does not match")
+	}
 }
 
 func TestPrune(t *testing.T) {
