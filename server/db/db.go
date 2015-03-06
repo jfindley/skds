@@ -50,7 +50,7 @@ func (_ Users) TableName() string {
 
 // ACL lookup function for users
 func (u Users) Lookup(db gorm.DB, uid, gid uint) bool {
-	q := db.Where("UID = ?, GID = ?, TargetID = ?", uid, gid, u.Id).First(&UserACLs{})
+	q := db.Where("UID = ? and GID = ? and TargetID = ?", uid, gid, u.Id).First(&UserACLs{})
 	if q.Error != nil {
 		return false
 	}
@@ -146,11 +146,11 @@ type MasterSecrets struct {
 // Lookup just checks if a user has any form of access to a key.
 // It does not distinguish between user-access and group-access.
 func (m MasterSecrets) Lookup(db gorm.DB, uid, gid uint) bool {
-	q := db.Where("UID = ?, SID = ?", uid, m.Id).First(&UserSecrets{})
+	q := db.Where("UID = ? and SID = ?", uid, m.Id).First(&UserSecrets{})
 	if q.Error == nil {
 		return true
 	}
-	q = db.Where("GID = ?, SID = ?", gid, m.Id).First(&GroupSecrets{})
+	q = db.Where("GID = ? and SID = ?", gid, m.Id).First(&GroupSecrets{})
 	if q.Error != nil {
 		return false
 	}
@@ -170,7 +170,7 @@ type Groups struct {
 }
 
 func (g Groups) Lookup(db gorm.DB, uid, gid uint) bool {
-	q := db.Where("UID = ?, GID = ?, TargetID = ?", uid, gid, g.Id).First(&GroupACLs{})
+	q := db.Where("UID = ? and GID = ? and TargetID = ?", uid, gid, g.Id).First(&GroupACLs{})
 	if q.Error != nil {
 		return false
 	}
