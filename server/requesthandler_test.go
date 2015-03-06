@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/jfindley/skds/crypto"
+	"github.com/jfindley/skds/dictionary"
 	"github.com/jfindley/skds/server/auth"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
@@ -18,7 +20,6 @@ type closingBuffer struct {
 }
 
 func (cb closingBuffer) Close() error {
-	crypto.Zero(cb.Bytes())
 	return nil
 }
 
@@ -39,7 +40,6 @@ func TestAuthentication(t *testing.T) {
 	req.Body = *in
 
 	rec := httptest.NewRecorder()
-
 	cfg := new(shared.Config)
 	pool := new(auth.SessionPool)
 
@@ -73,7 +73,7 @@ func TestAuthentication(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg.DB.Create(db.Users{Id: 5, Name: "admin", Password: enc, Admin: true})
+	cfg.DB.Create(&db.Users{Id: 5, Name: "admin", Password: enc, Admin: true})
 
 	authentication(cfg, pool, rec, req)
 
@@ -87,5 +87,98 @@ func TestAuthentication(t *testing.T) {
 
 	if rec.Header().Get("X-AUTH-KEY") == "" {
 		t.Error("No session key in response headers")
+	}
+}
+
+func TestApi(t *testing.T) {
+	var job dictionary.APIFunc
+
+	job.Serverfn = func(cfg *shared.Config, r shared.Request) {
+		r.Reply(200)
+		return
+	}
+
+	// Test unauthenticated functions
+
+	rec := httptest.NewRecorder()
+	cfg := new(shared.Config)
+	pool := new(auth.SessionPool)
+	req := new(http.Request)
+
+	api(cfg, pool, job, rec, req)
+
+	if rec.Code != 200 {
+		t.Error("Bad response code:", rec.Code)
+	}
+
+	// Create session and request
+
+	sess := new(auth.SessionInfo)
+
+	id, err := pool.Add(sess)
+	if err != nil {
+		t.Error(err)
+	}
+
+	testData := []byte(`{"Request":"Test"}`)
+
+	req.Body = closingBuffer{bytes.NewBuffer(testData)}
+
+	req.RequestURI = "/test/request"
+
+	mac := crypto.NewMAC(pool.Pool[id].SessionKey, "/test/request", testData)
+
+	req.Header = http.Header(make(map[string][]string))
+	req.Header.Add(shared.HdrMAC, mac)
+	req.Header.Add(shared.HdrSession, strconv.FormatInt(id, 10))
+
+	// Test authenticated functions
+
+	job.AuthRequired = true
+
+	rec = httptest.NewRecorder()
+	api(cfg, pool, job, rec, req)
+	if rec.Code != 200 {
+		t.Error("Bad response code:", rec.Code)
+	}
+
+	// Test admin restrictions
+
+	job.AdminOnly = true
+
+	req.Body = closingBuffer{bytes.NewBuffer(testData)}
+	rec = httptest.NewRecorder()
+	api(cfg, pool, job, rec, req)
+	if rec.Code != 403 {
+		t.Error("Bad response code:", rec.Code)
+	}
+
+	pool.Pool[id].Admin = true
+
+	req.Body = closingBuffer{bytes.NewBuffer(testData)}
+	rec = httptest.NewRecorder()
+	api(cfg, pool, job, rec, req)
+	if rec.Code != 200 {
+		t.Error("Bad response code:", rec.Code)
+	}
+
+	// Test super user restrictions
+
+	job.SuperOnly = true
+
+	req.Body = closingBuffer{bytes.NewBuffer(testData)}
+	rec = httptest.NewRecorder()
+	api(cfg, pool, job, rec, req)
+	if rec.Code != 403 {
+		t.Error("Bad response code:", rec.Code)
+	}
+
+	pool.Pool[id].Super = true
+
+	req.Body = closingBuffer{bytes.NewBuffer(testData)}
+	rec = httptest.NewRecorder()
+	api(cfg, pool, job, rec, req)
+	if rec.Code != 200 {
+		t.Error("Bad response code:", rec.Code)
 	}
 }
