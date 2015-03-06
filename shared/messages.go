@@ -3,7 +3,6 @@ package shared
 import (
 	"encoding/json"
 	"github.com/jinzhu/gorm"
-	"io/ioutil"
 	"net/http"
 	"strconv"
 
@@ -66,33 +65,20 @@ type ClientSession interface {
 type Request struct {
 	Req     Message
 	Headers http.Header
-	Body    []byte
 	Session ClientSession
 	writer  http.ResponseWriter
 }
 
 // New reads the request body and headers from the client request, and sets the
 // response writer.
-func (r *Request) New(req *http.Request, resp http.ResponseWriter) (err error) {
+func (r *Request) Parse(body []byte, resp http.ResponseWriter) bool {
 	r.writer = resp
-	r.Headers = req.Header
-	if req.Body != nil {
-		r.Body, err = ioutil.ReadAll(req.Body)
-		if err != nil {
-			http.Error(r.writer, "Unable to read request", http.StatusBadRequest)
-			return
-		}
-		req.Body.Close()
-	}
-	return
-}
-
-func (r *Request) Parse() (err error) {
-	err = json.Unmarshal(r.Body, &r.Req)
+	err := json.Unmarshal(body, &r.Req)
 	if err != nil {
+		return false
 		http.Error(r.writer, "Unable to parse request", http.StatusBadRequest)
 	}
-	return
+	return true
 }
 
 func (r *Request) SetSessionID(id int64) {

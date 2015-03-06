@@ -3,7 +3,6 @@ package shared
 import (
 	"bytes"
 	"github.com/jinzhu/gorm"
-	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -55,62 +54,12 @@ func (s *mockSession) IsSuper() bool {
 	return true
 }
 
-func TestResponseNew(t *testing.T) {
-	headers := make(map[string][]string)
-	headers["test"] = []string{"one", "two"}
-
-	in := &closingBuffer{bytes.NewBuffer(testData)}
-	req := new(http.Request)
-	req.Body = *in
-	req.Header = headers
-
-	var r Request
-	var resp http.ResponseWriter
-
-	err := r.New(req, resp)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if bytes.Compare(r.Body, testData) != 0 {
-		t.Error("Body does not match input")
-	}
-
-	for h := range headers {
-		if _, ok := r.Headers[h]; !ok {
-			t.Error("Missing header", h)
-			continue
-		}
-
-		if len(headers[h]) != len(r.Headers[h]) {
-			t.Error("Wrong number of elements in header", h)
-			continue
-		}
-
-		for v := range headers[h] {
-			if headers[h][v] != r.Headers[h][v] {
-				t.Error("Mismatched headers")
-			}
-		}
-	}
-}
-
 func TestResponseParse(t *testing.T) {
-	in := &closingBuffer{bytes.NewBuffer(testData)}
-	req := new(http.Request)
-	req.Body = *in
-
 	var r Request
-	var resp http.ResponseWriter
+	rec := httptest.NewRecorder()
 
-	err := r.New(req, resp)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = r.Parse()
-	if err != nil {
-		t.Fatal(err)
+	if !r.Parse(testData, rec) {
+		t.Fatal("Parse failed")
 	}
 
 	if r.Req.Auth.Name != "admin" {
@@ -119,16 +68,11 @@ func TestResponseParse(t *testing.T) {
 }
 
 func TestResponseReply(t *testing.T) {
-	in := &closingBuffer{bytes.NewBuffer(testData)}
-	req := new(http.Request)
-	req.Body = *in
-
 	var r Request
 	rec := httptest.NewRecorder()
 
-	err := r.New(req, rec)
-	if err != nil {
-		t.Fatal(err)
+	if !r.Parse(testData, rec) {
+		t.Fatal("Parse failed")
 	}
 
 	session := new(mockSession)
@@ -162,16 +106,11 @@ func TestResponseReply(t *testing.T) {
 }
 
 func TestResponseReplyMultiple(t *testing.T) {
-	in := &closingBuffer{bytes.NewBuffer(testData)}
-	req := new(http.Request)
-	req.Body = *in
-
 	var r Request
 	rec := httptest.NewRecorder()
 
-	err := r.New(req, rec)
-	if err != nil {
-		t.Fatal(err)
+	if !r.Parse(testData, rec) {
+		t.Fatal("Parse failed")
 	}
 
 	message := Message{Response: "OK"}
