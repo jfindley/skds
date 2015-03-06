@@ -3,15 +3,9 @@
 package dictionary
 
 import (
-	"errors"
-	"fmt"
-	"sort"
-	"strings"
-
-	"github.com/jfindley/skds/server/auth"
 	"github.com/jfindley/skds/shared"
 
-	admin "github.com/jfindley/skds/admin/functions"
+	// admin "github.com/jfindley/skds/admin/functions"
 	server "github.com/jfindley/skds/server/functions"
 )
 
@@ -26,105 +20,44 @@ type APIFunc struct {
 	Description  string
 }
 
-// Here we define a tree-like structure to establish command heirarchy
-// It can be nested indefinitely, and doesn't require any sort of run-time
-// reflection to parse.
-// One tradeoff is that you cannot walk "up" the tree -  a child can never
-// find out their parent.  This means we must always start at the root of
-// the tree to build the URL for a function.
+var Dictionary = map[string]APIFunc{
+	"/admin/password": AdminPass,
 
-type Tree struct {
-	Members  map[string]APIFunc
-	Children map[string]*Tree
-}
+	"/admin/user/create": AdminNew,
+	"/admin/user/delete": UserDel,
+	"/admin/user/list":   UserList,
+	"/admin/user/super":  AdminSuper,
+	"/admin/user/group":  UserGroupAssign,
 
-var Group = Tree{
-	Members: map[string]APIFunc{
-		"new":    GroupNew,
-		"delete": GroupDel,
-		"list":   GroupList,
-	},
-}
+	"/admin/group/create": GroupNew,
+	"/admin/group/delete": GroupDel,
+	"/admin/group/list":   GroupList,
 
-var Admin = Tree{
-	Members: map[string]APIFunc{
-		"password": AdminPass,
-		"new":      AdminNew,
-		"delete":   AdminDel,
-		"super":    AdminSuper,
-		"pubkey":   AdminPubkey,
-		"list":     AdminList,
-		"group":    AdminGroupAssign,
-	},
-	Children: map[string]*Tree{
-		"group": &Group,
-	},
-}
+	"/ca": GetCA,
 
-var Client = Tree{
-	Members: map[string]APIFunc{
-		"delete":   ClientDel,
-		"group":    ClientGroupAssign,
-		"list":     ClientList,
-		"register": ClientRegister,
-		"keys":     ClientGetKey,
-	},
-}
+	"/client/register": ClientRegister,
+	"/client/secrets":  ClientGetSecret,
 
-var KeyAdmin = Tree{
-	Members: map[string]APIFunc{
-		"assign": KeyAssignAdmin,
-		"remove": KeyRemoveAdmin,
-		"public": KeyPubAdmin,
-		"super":  KeySuper,
-		"list":   KeyListAdmin,
-	},
-}
+	"/key/public/get/user":   UserPubKey,
+	"/key/public/get/group":  GroupPubKey,
+	"/key/public/get/super":  SuperPubKey,
+	"/key/public/set":        SetPubKey,
+	"/key/private/get/group": GroupPrivKey,
+	"/key/private/set/super": SetSuperKey,
 
-var KeyClient = Tree{
-	Members: map[string]APIFunc{
-		"assign": KeyAssignClient,
-		"remove": KeyRemoveClient,
-		"public": KeyPubClient,
-		"list":   KeyListClient,
-	},
-}
+	"/secret/create": SecretNew,
+	"/secret/delete": SecretDel,
+	"/secret/update": SecretUpdate,
 
-var KeyGroup = Tree{
-	Members: map[string]APIFunc{
-		"assign": KeyAssignGroup,
-		"remove": KeyRemoveGroup,
-		"public": KeyPubGroup,
-		"list":   KeyListGroup,
-	},
-}
+	"/secret/list/all":   SecretList,
+	"/secret/list/user":  SecretListUser,
+	"/secret/list/group": SecretListGroup,
 
-var Key = Tree{
-	Members: map[string]APIFunc{
-		"list":   KeyList,
-		"new":    KeyNew,
-		"delete": KeyDel,
-		"update": KeyUpdate,
-	},
-	Children: map[string]*Tree{
-		"admin":  &KeyAdmin,
-		"client": &KeyClient,
-		"group":  &KeyGroup,
-	},
-}
+	"/secret/assign/user":  SecretAssignUser,
+	"/secret/assign/group": SecretAssignGroup,
 
-var Dictionary = Tree{
-	Members: map[string]APIFunc{
-		"ca":       GetCA,
-		"setup":    Setup,
-		"test":     Test,
-		"testauth": TestAuth,
-	},
-	Children: map[string]*Tree{
-		"admin":  &Admin,
-		"client": &Client,
-		"key":    &Key,
-	},
+	"/secret/remove/user":  SecretRemoveUser,
+	"/secret/remove/group": SecretRemoveGroup,
 }
 
 // Misc functions
@@ -134,32 +67,11 @@ var GetCA = APIFunc{
 	Description: "Display the server CA",
 }
 
-var Test = APIFunc{
-	Serverfn:    server.Test,
-	Adminfn:     admin.Test,
-	Description: "Test function",
-}
-
-var TestAuth = APIFunc{
-	Serverfn:     server.Test,
-	Adminfn:      admin.Test,
-	AuthRequired: true,
-	Description:  "Test function",
-}
-
-var Setup = APIFunc{
-	Serverfn:     server.Setup,
-	AuthRequired: true,
-	AdminOnly:    true,
-	SuperOnly:    true,
-	Description:  "Create the group secret for the super-group",
-}
-
 // Admin functions
 
 var AdminPass = APIFunc{
-	Serverfn:     server.UserPass,
-	Adminfn:      admin.Pass,
+	Serverfn: server.UserPass,
+	// Adminfn:      admin.Pass,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Change your password",
@@ -173,12 +85,12 @@ var AdminNew = APIFunc{
 	Description:  "Create a new admin user",
 }
 
-var AdminDel = APIFunc{
-	Serverfn:     server.AdminDel,
+var UserDel = APIFunc{
+	Serverfn:     server.UserDel,
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
-	Description:  "Delete an admin user",
+	Description:  "Delete a user",
 }
 
 var AdminSuper = APIFunc{
@@ -186,22 +98,22 @@ var AdminSuper = APIFunc{
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
-	Description:  "Change an admin's superuser status",
+	Description:  "Make an admin a superuser",
 }
 
-var AdminPubkey = APIFunc{
-	Serverfn:     server.UserPubkey,
+var SetPubKey = APIFunc{
+	Serverfn:     server.SetPubkey,
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
-	Description:  "Set your pubkey",
+	Description:  "Set your public key",
 }
 
-var AdminList = APIFunc{
-	Serverfn:     server.AdminList,
+var UserList = APIFunc{
+	Serverfn:     server.UserList,
 	AuthRequired: true,
 	AdminOnly:    true,
-	Description:  "List all admins",
+	Description:  "List users",
 }
 
 var GroupNew = APIFunc{
@@ -227,36 +139,28 @@ var GroupList = APIFunc{
 	Description:  "list groups",
 }
 
-var AdminGroupAssign = APIFunc{
-	Serverfn:     server.AdminGroupAssign,
+var UserGroupAssign = APIFunc{
+	Serverfn:     server.UserGroupAssign,
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
 	Description:  "Assign an admin to a group",
 }
 
+var SetSuperKey = APIFunc{
+	Serverfn:     server.SetSuperKey,
+	AuthRequired: true,
+	AdminOnly:    true,
+	SuperOnly:    true,
+	Description:  "Set the group key for the super-group",
+}
+
 // Client functions
 
-var ClientGetKey = APIFunc{
-	Serverfn:     server.ClientGetKey,
+var ClientGetSecret = APIFunc{
+	Serverfn:     server.ClientGetSecret,
 	AuthRequired: true,
 	Description:  "Download keys assigned to this client",
-}
-
-var ClientDel = APIFunc{
-	Serverfn:     server.ClientDel,
-	AuthRequired: true,
-	AdminOnly:    true,
-	AclCheck:     true,
-	Description:  "Delete a client",
-}
-
-var ClientGroupAssign = APIFunc{
-	Serverfn:     server.ClientGroupAssign,
-	AuthRequired: true,
-	AdminOnly:    true,
-	AclCheck:     true,
-	Description:  "Change a client's group",
 }
 
 var ClientRegister = APIFunc{
@@ -264,220 +168,108 @@ var ClientRegister = APIFunc{
 	Description: "Register a new client",
 }
 
-var ClientList = APIFunc{
-	Serverfn:     server.ClientList,
-	AuthRequired: true,
-	AdminOnly:    true,
-	Description:  "List all clients",
-}
+// Secret functions
 
-// Key functions
-
-var KeyList = APIFunc{
-	Serverfn:     server.KeyList,
+var SecretList = APIFunc{
+	Serverfn:     server.SecretList,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "list all keys",
 }
 
-var KeyPubClient = APIFunc{
-	Serverfn:     server.KeyPubClient,
+var UserPubKey = APIFunc{
+	Serverfn:     server.UserPubKey,
 	AuthRequired: true,
 	AdminOnly:    true,
-	Description:  "Download the public key for a client",
+	Description:  "Download the public key for a user",
 }
 
-var KeyPubAdmin = APIFunc{
-	Serverfn:     server.KeyPubAdmin,
-	AuthRequired: true,
-	AdminOnly:    true,
-	Description:  "Download the public key for an admin",
-}
-
-var KeySuper = APIFunc{
-	Serverfn:     server.KeySuper,
+var SuperPubKey = APIFunc{
+	Serverfn:     server.SuperPubKey,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Download the public key for the super-group",
 }
 
-var KeyPubGroup = APIFunc{
-	Serverfn:     server.KeyPubGroup,
+var GroupPubKey = APIFunc{
+	Serverfn:     server.GroupPubKey,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Download the public key for a group",
 }
 
-var KeyPrivGroup = APIFunc{
-	Serverfn:     server.KeyPrivGroup,
+var GroupPrivKey = APIFunc{
+	Serverfn:     server.GroupPrivKey,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Download the (encrypted with the super-key) private key for a group",
 }
 
-var KeyNew = APIFunc{
-	Serverfn:     server.KeyNew,
+var SecretNew = APIFunc{
+	Serverfn:     server.SecretNew,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Add a new key",
 }
 
-var KeyDel = APIFunc{
-	Serverfn:     server.KeyDel,
+var SecretDel = APIFunc{
+	Serverfn:     server.SecretDel,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Delete a key",
 }
 
-var KeyUpdate = APIFunc{
-	Serverfn:     server.KeyUpdate,
+var SecretUpdate = APIFunc{
+	Serverfn:     server.SecretUpdate,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Update the data of a secret",
 }
 
-var KeyAssignAdmin = APIFunc{
-	Serverfn:     server.KeyAssignAdmin,
+var SecretAssignUser = APIFunc{
+	Serverfn:     server.SecretAssignUser,
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
-	Description:  "Assign a key to an admin",
+	Description:  "Assign a key to a user",
 }
 
-var KeyAssignClient = APIFunc{
-	Serverfn:     server.KeyAssignClient,
-	AuthRequired: true,
-	AdminOnly:    true,
-	AclCheck:     true,
-	Description:  "Assign a key to a client",
-}
-
-var KeyAssignGroup = APIFunc{
-	Serverfn:     server.KeyAssignGroup,
+var SecretAssignGroup = APIFunc{
+	Serverfn:     server.SecretAssignGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
 	AclCheck:     true,
 	Description:  "Assign a key to a group",
 }
 
-var KeyRemoveAdmin = APIFunc{
-	Serverfn:     server.KeyRemoveAdmin,
+var SecretRemoveUser = APIFunc{
+	Serverfn:     server.SecretRemoveUser,
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
-	Description:  "Remove a key from an admin",
+	Description:  "Remove a key from a user",
 }
 
-var KeyRemoveClient = APIFunc{
-	Serverfn:     server.KeyRemoveClient,
-	AuthRequired: true,
-	AdminOnly:    true,
-	AclCheck:     true,
-	Description:  "Remove a key from a client",
-}
-
-var KeyRemoveGroup = APIFunc{
-	Serverfn:     server.KeyRemoveGroup,
+var SecretRemoveGroup = APIFunc{
+	Serverfn:     server.SecretRemoveGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
 	AclCheck:     true,
 	Description:  "Remove a key from a group",
 }
 
-var KeyListAdmin = APIFunc{
-	Serverfn:     server.KeyListAdmin,
+var SecretListUser = APIFunc{
+	Serverfn:     server.SecretListUser,
 	AuthRequired: true,
 	AdminOnly:    true,
 	AclCheck:     true,
-	Description:  "List all keys for an admin",
+	Description:  "List all keys for a user",
 }
 
-var KeyListClient = APIFunc{
-	Serverfn:     server.KeyListClient,
-	AuthRequired: true,
-	AdminOnly:    true,
-	AclCheck:     true,
-	Description:  "List all keys for a client",
-}
-
-var KeyListGroup = APIFunc{
-	Serverfn:     server.KeyListGroup,
+var SecretListGroup = APIFunc{
+	Serverfn:     server.SecretListGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
 	AclCheck:     true,
 	Description:  "List all keys for a group",
-}
-
-func (t *Tree) urlMap(base string) map[string]APIFunc {
-	urls := make(map[string]APIFunc)
-	for name, fn := range t.Members {
-		urls[fmt.Sprintf("%s/%s", base, name)] = fn
-	}
-	for name, child := range t.Children {
-		c := child // Clone this so it doesn't get overwritten
-		childurls := c.urlMap(fmt.Sprintf("%s/%s", base, name))
-		for n, f := range childurls {
-			urls[n] = f
-		}
-	}
-	return urls
-}
-
-func (t *Tree) descMap(base string) map[string]string {
-	out := make(map[string]string)
-	for name, fn := range t.Members {
-		out[fmt.Sprintf("%s %s", base, name)] = fn.Description
-	}
-	for name, child := range t.Children {
-		c := child
-		childout := c.descMap(fmt.Sprintf("%s %s", base, name))
-		for n, f := range childout {
-			out[n] = f
-		}
-	}
-	return out
-}
-
-func (t *Tree) URLDict() map[string]APIFunc {
-	return t.urlMap("")
-}
-
-func (t *Tree) Docs() {
-	docs := t.descMap("")
-	output := make([]string, len(docs))
-	var i int
-	for path, desc := range docs {
-		output[i] = fmt.Sprintf("%s%s%s", path[1:], strings.Repeat(" ", 29-len(path)), desc)
-		i++
-	}
-	sort.Strings(output)
-	fmt.Println(strings.Join(output, "\n"))
-	return
-}
-
-func (t *Tree) FindFunc(cfg *shared.Config, input []string) error {
-	treeref := t
-	var url string
-	for i, in := range input {
-		if _, ok := treeref.Members[in]; ok {
-			if treeref.Members[in].Adminfn == nil {
-				return errors.New("Sorry, this function is not available currently.  If you feel you need it, please file a bug.")
-			}
-			// Found a valid function, build the URL and run it (with data if present)
-			var data []string
-			if len(input) > i {
-				data = input[i+1:]
-			}
-			url = fmt.Sprintf("%s/%s", url, in)
-			return treeref.Members[in].Adminfn(cfg, url, data)
-		}
-		if _, ok := treeref.Children[in]; ok {
-			// Found a subtree.  Move treeref.
-			url = fmt.Sprintf("%s/%s", url, in)
-			treeref = treeref.Children[in]
-		}
-	}
-	// Invalid input, print docs for as far as we got
-	treeref.Docs()
-	return nil
 }
