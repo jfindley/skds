@@ -32,7 +32,7 @@ type SessionInfo struct {
 }
 
 // CheckACL runs the lookup function of the specified object(s) and
-// returns true if the user has access to all objects specified.
+// returns true only if the user has access to all objects specified.
 func (a *SessionInfo) CheckACL(db gorm.DB, objects ...shared.ACL) bool {
 	if a.Super {
 		return true
