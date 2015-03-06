@@ -4,6 +4,7 @@ package auth
 
 import (
 	"crypto/rand"
+	"fmt"
 	"github.com/jinzhu/gorm"
 	"io"
 	"io/ioutil"
@@ -151,25 +152,28 @@ func (s *SessionPool) Get(id int64) (sess *SessionInfo) {
 // Validate checks that a message belongs to a session, and returns the session ID and request body.
 // func (s *SessionPool) Validate(id int64, msgMac string, url string, message []byte) (ok bool) {
 func (s *SessionPool) Validate(r *http.Request) (ok bool, id int64, body []byte) {
-	msgMac := r.Header.Get(shared.HdrMAC)
+	mac := r.Header.Get(shared.HdrMAC)
 
 	session := r.Header.Get(shared.HdrSession)
-	if msgMac == "" || session == "" {
+	if mac == "" || session == "" {
 		return
 	}
 	id, err := strconv.ParseInt(session, 10, 64)
 	if err != nil {
+		println(err.Error())
 		return
 	}
 
-	body, err = ioutil.ReadAll(r.Body)
-	if err != nil {
-		return
-	}
+	if r.Body != nil {
+		body, err = ioutil.ReadAll(r.Body)
+		if err != nil {
+			return
+		}
 
-	err = r.Body.Close()
-	if err != nil {
-		return
+		err = r.Body.Close()
+		if err != nil {
+			return
+		}
 	}
 
 	s.mu.Lock()
@@ -179,9 +183,10 @@ func (s *SessionPool) Validate(r *http.Request) (ok bool, id int64, body []byte)
 		return
 	}
 
-	key := s.Pool[id].SessionKey
-	ok = crypto.VerifyMAC(key, msgMac, r.RequestURI, body)
+	ok = crypto.VerifyMAC(s.Pool[id].SessionKey, mac, r.RequestURI, body)
 	if !ok {
+		fmt.Println(r.Body)
+		fmt.Println("bad mac", id, mac, r.RequestURI, body)
 		return
 	}
 

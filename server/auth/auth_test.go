@@ -23,7 +23,6 @@ type closingBuffer struct {
 }
 
 func (cb closingBuffer) Close() error {
-	crypto.Zero(cb.Bytes())
 	return nil
 }
 
@@ -198,9 +197,9 @@ func TestValidate(t *testing.T) {
 	// Validate a POST request
 	testData := []byte(`{"Request":"Test"}`)
 
-	in := &closingBuffer{bytes.NewBuffer(testData)}
+	in := closingBuffer{bytes.NewBuffer(testData)}
 	req := new(http.Request)
-	req.Body = *in
+	req.Body = in
 
 	req.RequestURI = "/test/request"
 
@@ -222,15 +221,12 @@ func TestValidate(t *testing.T) {
 	}
 
 	// Validate a GET request
-	testData = []byte(`{"Request":"Test"}`)
 
-	in = &closingBuffer{bytes.NewBuffer(testData)}
 	req = new(http.Request)
-	req.Body = *in
 
 	req.RequestURI = "/test/request"
 
-	mac = crypto.NewMAC(p.Pool[id].SessionKey, "/test/request", testData)
+	mac = crypto.NewMAC(p.Pool[id].SessionKey, "/test/request", nil)
 
 	req.Header = http.Header(make(map[string][]string))
 	req.Header.Add(shared.HdrMAC, mac)
@@ -242,9 +238,6 @@ func TestValidate(t *testing.T) {
 	}
 	if sid != id {
 		t.Error("Wrong session ID")
-	}
-	if bytes.Compare(body, testData) != 0 {
-		t.Error("Body does not match")
 	}
 }
 
