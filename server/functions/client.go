@@ -9,189 +9,161 @@ shared.Message messages.
 package functions
 
 import (
-	"github.com/jfindley/skds/server/auth"
+	"database/sql"
+
+	"github.com/jfindley/skds/crypto"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
 
-/*
-No input
-*/
-func ClientGetKey(cfg *shared.Config, r shared.Request) {
-	list := make([]shared.Message, 0)
+func ClientGetSecret(cfg *shared.Config, r shared.Request) {
+	var err error
 
-	if authobj.GID != shared.DefClientGID {
-		rows, err := cfg.DB.Table("group_secrets").Where("group_secrets.gid = ?", authobj.GID).Select(
-			"group_secrets.secret, master_secrets.secret, group_secrets.path",
-		).Joins("left join master_secrets on group_secrets.sid = master_secrets.id").Rows()
-		if err != nil {
-			println(err.Error())
-			return genericFailure(cfg, err)
-		}
-
-		for rows.Next() {
-			var (
-				m            shared.Message
-				groupSecret  []byte
-				masterSecret []byte
-				path         string
-			)
-			err = rows.Scan(&groupSecret, &masterSecret, &path)
-			if err != nil {
-				println(err.Error())
-				return genericFailure(cfg, err)
-			}
-			m.Key.Secret = masterSecret
-			m.Key.Key = groupSecret
-			m.Key.Path = path
-			list = append(list, m)
-		}
-	}
-
-	rows, err := cfg.DB.Table("client_secrets").Where("client_secrets.uid = ?", authobj.UID).Select(
-		"client_secrets.secret, master_secrets.secret, client_secrets.path",
-	).Joins("left join master_secrets on client_secrets.sid = master_secrets.id").Rows()
-	if err != nil {
-		println(err.Error())
-		return genericFailure(cfg, err)
-	}
-
-	for rows.Next() {
-		var (
-			m            shared.Message
-			clientSecret []byte
-			masterSecret []byte
-			path         string
-		)
-		err = rows.Scan(&clientSecret, &masterSecret, &path)
-		if err != nil {
-			println(err.Error())
-			return genericFailure(cfg, err)
-		}
-		m.Key.Secret = masterSecret
-		m.Key.Key = clientSecret
-		m.Key.Path = path
-		list = append(list, m)
-	}
-
-	resp.Response = "OK"
-	resp.ResponseData = list
-	return
-}
-
-/*
-Client.Name => Name
-*/
-func ClientDel(cfg *shared.Config, r shared.Request) {
-	q := cfg.DB.Where("name = ?", msg.Client.Name).Delete(db.Users{})
-	if q.RecordNotFound() {
-		resp.Response = "No such user"
-		ret = 404
-		return
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-	resp.Response = "OK"
-	return
-}
-
-/*
-Client.Name => name
-Client.Group => name of group
-Key.GroupPriv => Copy of the group private key, encrypted with the public key of the target client
-*/
-func ClientGroup(cfg *shared.Config, r shared.Request) {
-	// This function relies on the client sending a pre-computed group key.
-	// We can't do this on the server as it would involve having the ability to decrypt keys.
-
-	if msg.Key.GroupPriv == nil && msg.Client.Group != "default" {
-		return namedFailure(400, "No group key provided, unable to assign group")
-	}
-
-	client := new(db.Users)
-	group := new(db.Groups)
-
-	q := cfg.DB.Where("name = ?", msg.Client.Name).First(client)
-	if q.RecordNotFound() {
-		return namedFailure(400, "No such client")
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	q = cfg.DB.Where("name = ? and kind = ?", msg.Client.Group, "client").First(group)
-	if q.RecordNotFound() {
-		return namedFailure(400, "No such group")
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	if client.GID == group.Id {
-		return namedFailure(200, "Client already member of this group")
-	}
-
-	client.GID = group.Id
-
-	if msg.Client.Group == "default" {
-		client.GroupKey = nil
-	} else {
-		client.GroupKey = shared.HexEncode(msg.Key.GroupPriv)
-	}
-
-	q = cfg.DB.Save(client)
+	// Get the group key
+	var user db.Users
+	q := cfg.DB.First(&user, r.Session.GetUID())
 	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
+		cfg.Log(1, q.Error)
+		r.Reply(500)
+		return
 	}
-	resp.Response = "OK"
+
+	var groupPriv crypto.Binary
+	err = groupPriv.Decode(user.GroupKey)
+	if err != nil {
+		cfg.Log(1, err)
+		r.Reply(500)
+		return
+	}
+
+	// We select secrets owned directly and inherited via groups separately,
+	// to make our SQL less confusing to follow.
+	rows, err := cfg.DB.Table("MasterSecrets").Select(
+		"MasterSecrets.name, MasterSecrets.secret, UserSecrets.path, UserSecrets.secret").Where(
+		"UserSecrets.uid = ?", r.Session.GetUID()).Joins(
+		"left join UserSecrets on MasterSecrets.id = UserSecrets.sid").Rows()
+	if err != nil {
+		cfg.Log(1, err)
+		r.Reply(500)
+		return
+	}
+
+	userSecrets, err := clientSecretScanner(rows, nil)
+	if err != nil {
+		cfg.Log(1, err)
+		r.Reply(500)
+		return
+	}
+
+	rows, err = cfg.DB.Table("MasterSecrets").Select(
+		"MasterSecrets.name, MasterSecrets.secret, GroupSecrets.path, GroupSecrets.secret").Where(
+		"GroupSecrets.gid = ?", r.Session.GetGID()).Joins(
+		"left join GroupSecrets on MasterSecrets.id = GroupSecrets.sid").Rows()
+	if err != nil {
+		cfg.Log(1, err)
+		r.Reply(500)
+		return
+	}
+
+	groupSecrets, err := clientSecretScanner(rows, groupPriv)
+	if err != nil {
+		cfg.Log(1, err)
+		r.Reply(500)
+		return
+	}
+
+	secrets := make([]shared.Message, len(userSecrets)+len(groupSecrets))
+	copy(secrets, userSecrets)
+	copy(secrets[len(userSecrets):], groupSecrets)
+
+	r.Reply(200, secrets...)
 	return
 }
 
 /*
-Client.Name => name
-Client.Password => encrypted password
-Client.Key => public part of local key
+User.Name => name
+User.Password => encrypted password
+User.Key => public part of local key
 */
 func ClientRegister(cfg *shared.Config, r shared.Request) {
-	client := new(db.Users)
+	var user db.Users
 
-	client.Name = msg.Client.Name
-	client.Password = shared.HexEncode(msg.Client.Password)
-	client.Pubkey = shared.HexEncode(msg.Client.Key)
-	client.GID = shared.DefClientGID
+	hash, err := crypto.PasswordHash(r.Req.User.Password)
 
-	if cfg.DB.First(client).RecordNotFound() {
-		q := cfg.DB.Create(client)
-		if q.Error != nil {
-			return genericFailure(cfg, q.Error)
-		}
-	} else {
-		resp.Response = "Client with this name already exists"
-		return 401, resp
+	user.Name = r.Req.User.Name
+	user.Admin = false
+
+	if !newUser(cfg, user.Name, user.Admin) {
+		r.Reply(409, shared.RespMessage("Username already exists"))
+		return
 	}
 
-	resp.Response = "OK"
+	user.Password, err = hash.Encode()
+	if err != nil {
+		cfg.Log(1, err)
+		r.Reply(500)
+		return
+	}
+
+	user.PubKey, err = crypto.NewBinary(r.Req.User.Key).Encode()
+	if err != nil {
+		cfg.Log(1, err)
+		r.Reply(500)
+		return
+	}
+
+	q := cfg.DB.Create(&user)
+	if q.Error != nil {
+		cfg.Log(1, q.Error)
+		r.Reply(500)
+		return
+	}
+
+	r.Reply(204)
 	return
 }
 
-/*
-No input
-*/
-func ClientList(cfg *shared.Config, r shared.Request) {
-	list := make([]shared.Message, 0)
-
-	rows, err := cfg.DB.Table("clients").Select("clients.name, groups.name").Joins("left join groups on clients.gid = groups.id").Rows()
-	if err != nil {
-		return genericFailure(cfg, err)
-	}
-
+func clientSecretScanner(rows *sql.Rows, groupKey []byte) (msgs []shared.Message, err error) {
 	for rows.Next() {
 		var m shared.Message
-		err = rows.Scan(&m.Client.Name, &m.Client.Group)
+		var encSecret []byte
+		var encKey []byte
+		var secret crypto.Binary
+		var key crypto.Binary
+
+		err = rows.Scan(&m.Key.Name, &encSecret, &m.Key.Path, &encKey)
 		if err != nil {
-			return genericFailure(cfg, err)
+			return
 		}
-		list = append(list, m)
+
+		err = secret.Decode(encSecret)
+		if err != nil {
+			return
+		}
+
+		err = key.Decode(encKey)
+		if err != nil {
+			return
+		}
+
+		m.Key.Secret = secret
+		m.Key.Key = key
+
+		if groupKey != nil {
+			m.Key.GroupPriv = groupKey
+		}
+		msgs = append(msgs, m)
 	}
-	resp.ResponseData = list
-	resp.Response = "OK"
 	return
+}
+
+func newUser(cfg *shared.Config, name string, admin bool) bool {
+	q := cfg.DB.Where("name = ? and admin = ?", name, admin).First(&db.Users{})
+	if !q.RecordNotFound() {
+		return false
+	} else if q.Error != nil && !q.RecordNotFound() {
+		cfg.Log(1, q.Error)
+		return false
+	}
+	return true
 }

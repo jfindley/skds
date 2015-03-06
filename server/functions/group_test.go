@@ -1,6 +1,7 @@
 package functions
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/jfindley/skds/crypto"
@@ -164,5 +165,95 @@ func TestGroupList(t *testing.T) {
 	// default admin/client groups + super group + two new ones
 	if len(msgs) != 5 {
 		t.Error("Expected 5 messages")
+	}
+}
+
+func TestUserGroupAssign(t *testing.T) {
+	req, resp := respRecorder()
+	req.Session = session
+	var err error
+
+	err = setupDB(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cfg.DB.Close()
+
+	superKey := new(crypto.Key)
+	groupKey := new(crypto.Key)
+	adminKey := new(crypto.Key)
+
+	err = superKey.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = groupKey.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = adminKey.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	groupPriv, err := crypto.Encrypt(groupKey.Priv[:], superKey, superKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	adminPriv, err := crypto.Encrypt(groupKey.Priv[:], superKey, adminKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	admin := new(db.Users)
+	group := new(db.Groups)
+	admin.Name = "Test Admin"
+	admin.Admin = true
+	admin.PubKey, err = crypto.NewBinary(adminKey.Pub[:]).Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	group.Name = "Test group"
+	group.Admin = true
+
+	group.PubKey, err = crypto.NewBinary(groupKey.Pub[:]).Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	group.PrivKey, err = crypto.NewBinary(groupPriv).Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg.DB.Create(admin)
+	cfg.DB.Create(group)
+
+	req.Req.User.Name = admin.Name
+	req.Req.User.Admin = true
+	req.Req.User.Group = group.Name
+	req.Req.Key.GroupPriv = adminPriv
+
+	UserGroupAssign(cfg, req)
+	if resp.Code != 204 {
+		t.Error("Bad response code:", resp.Code)
+	}
+
+	// Make sure we can decrypt the group key after assignment with the admin key
+	admin = new(db.Users)
+	cfg.DB.Where("name = ?", req.Req.User.Name).First(admin)
+
+	var dbKey crypto.Binary
+	err = dbKey.Decode(admin.GroupKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	groupKeyRaw, err := crypto.Decrypt(dbKey, adminKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if bytes.Compare(groupKeyRaw, groupKey.Priv[:]) != 0 {
+		t.Error("Decrypted key does not match")
 	}
 }

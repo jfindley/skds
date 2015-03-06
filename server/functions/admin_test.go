@@ -1,12 +1,46 @@
 package functions
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/jfindley/skds/crypto"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
+
+func TestGetCA(t *testing.T) {
+	req, resp := respRecorder()
+
+	cfg.Runtime.CACert = new(crypto.TLSCert)
+	key := new(crypto.TLSKey)
+	key.Generate()
+	cfg.Runtime.CACert.Generate("test", false, 1, key.Public(), key, nil)
+
+	GetCA(cfg, req)
+
+	if resp.Code != 200 {
+		t.Error("Bad response code:", resp.Code)
+	}
+
+	msgs, err := shared.ReadResp(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(msgs) == 0 {
+		t.Fatal("Missing response")
+	}
+
+	testCa, err := cfg.Runtime.CACert.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if bytes.Compare(msgs[0].X509.Cert, testCa) != 0 {
+		t.Error("Certs do not match")
+	}
+}
 
 func TestUserPass(t *testing.T) {
 	req, resp := respRecorder()
@@ -139,9 +173,8 @@ func TestAdminSuper(t *testing.T) {
 
 }
 
-func TestUserPubkey(t *testing.T) {
+func TestUserDel(t *testing.T) {
 	req, resp := respRecorder()
-	req.Session = session
 	var err error
 
 	err = setupDB(cfg)
@@ -150,26 +183,61 @@ func TestUserPubkey(t *testing.T) {
 	}
 	defer cfg.DB.Close()
 
-	req.Req.User.Key = []byte("pub key")
-	UserPubkey(cfg, req)
+	user := new(db.Users)
+	user.Name = "NewAdmin"
+	user.Admin = true
+	q := cfg.DB.Create(user)
+	if q.Error != nil {
+		t.Fatal(q.Error)
+	}
+
+	req.Req.User.Name = user.Name
+	req.Req.User.Admin = true
+	UserDel(cfg, req)
 
 	if resp.Code != 204 {
 		t.Error("Bad response code:", resp.Code)
 	}
 
-	user := db.Users{Id: session.UID}
-
-	q := cfg.DB.First(&user)
-	if q.Error != nil {
-		t.Fatal(err)
+	if q := cfg.DB.Find(&user, "name = ?", user.Name); !q.RecordNotFound() {
+		t.Error("Admin still exists after delete", q.Error)
 	}
+}
 
-	var dbKey crypto.Binary
-	err = dbKey.Decode(user.PubKey)
+func TestUserList(t *testing.T) {
+	req, resp := respRecorder()
+	var err error
+
+	err = setupDB(cfg)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !dbKey.Compare(req.Req.User.Key) {
-		t.Error("Key does not match")
+	defer cfg.DB.Close()
+
+	user := new(db.Users)
+	user.Name = "New admin user"
+	user.Admin = true
+	cfg.DB.Create(user)
+
+	user = new(db.Users)
+	user.Name = "New client user"
+	user.Admin = false
+	cfg.DB.Create(user)
+
+	req.Req.User.Admin = false
+
+	UserList(cfg, req)
+
+	if resp.Code != 200 {
+		t.Error("Bad response code:", resp.Code)
+	}
+
+	msgs, err := shared.ReadResp(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// new client only
+	if len(msgs) != 1 {
+		t.Error("Expected 1 message")
 	}
 }

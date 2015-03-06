@@ -14,33 +14,17 @@ import (
 	"github.com/jfindley/skds/shared"
 )
 
-/*
-User.Password => new password.
-*/
-func UserPass(cfg *shared.Config, r shared.Request) {
-	defer crypto.Zero(r.Req.User.Password)
-
-	encrypted, err := crypto.PasswordHash(r.Req.User.Password)
-	if err != nil {
-		r.Reply(500)
-		return
-	}
-
-	enc, err := encrypted.Encode()
+func GetCA(cfg *shared.Config, r shared.Request) {
+	var err error
+	var msg shared.Message
+	msg.X509.Cert, err = cfg.Runtime.CACert.Encode()
 	if err != nil {
 		cfg.Log(1, err)
 		r.Reply(500)
 		return
 	}
 
-	q := cfg.DB.First(&db.Users{}, r.Session.GetUID()).Update("Password", enc)
-	if q.Error != nil {
-		cfg.Log(1, q.Error)
-		r.Reply(500)
-		return
-	}
-	r.Reply(204)
-	return
+	r.Reply(200, msg)
 }
 
 /*
@@ -49,6 +33,14 @@ User.Name => name
 func AdminNew(cfg *shared.Config, r shared.Request) {
 	user := new(db.Users)
 	var resp shared.Message
+
+	user.Name = r.Req.User.Name
+	user.Admin = true
+
+	if !newUser(cfg, user.Name, user.Admin) {
+		r.Reply(409, shared.RespMessage("Username already exists"))
+		return
+	}
 
 	pass, err := crypto.NewPassword()
 	if err != nil {
@@ -66,16 +58,9 @@ func AdminNew(cfg *shared.Config, r shared.Request) {
 		return
 	}
 
-	user.Name = r.Req.User.Name
-	user.Admin = true
 	user.Password, err = hash.Encode()
 	if err != nil {
 		r.Reply(500)
-		return
-	}
-
-	if !cfg.DB.NewRecord(user) {
-		r.Reply(200, shared.RespMessage("Username already exists"))
 		return
 	}
 
@@ -92,13 +77,6 @@ func AdminNew(cfg *shared.Config, r shared.Request) {
 
 	r.Reply(200, resp)
 	return
-}
-
-/*
-User.Name => name
-*/
-func AdminDel(cfg *shared.Config, r shared.Request) {
-	userDel(cfg, r, true)
 }
 
 /*
@@ -147,17 +125,25 @@ func AdminSuper(cfg *shared.Config, r shared.Request) {
 }
 
 /*
-User.Key => public part of local key
+User.Password => new password.
 */
-func UserPubkey(cfg *shared.Config, r shared.Request) {
-	enc, err := crypto.NewBinary(r.Req.User.Key).Encode()
+func UserPass(cfg *shared.Config, r shared.Request) {
+	defer crypto.Zero(r.Req.User.Password)
+
+	encrypted, err := crypto.PasswordHash(r.Req.User.Password)
+	if err != nil {
+		r.Reply(500)
+		return
+	}
+
+	enc, err := encrypted.Encode()
 	if err != nil {
 		cfg.Log(1, err)
 		r.Reply(500)
 		return
 	}
 
-	q := cfg.DB.First(&db.Users{}, r.Session.GetUID()).Update("PubKey", enc)
+	q := cfg.DB.First(&db.Users{}, r.Session.GetUID()).Update("Password", enc)
 	if q.Error != nil {
 		cfg.Log(1, q.Error)
 		r.Reply(500)
@@ -168,23 +154,49 @@ func UserPubkey(cfg *shared.Config, r shared.Request) {
 }
 
 /*
-No input
+User.Name => name
+User.Admin => admin/client user
 */
-func AdminList(cfg *shared.Config, r shared.Request) {
-	userList(cfg, r, true)
+func UserDel(cfg *shared.Config, r shared.Request) {
+	q := cfg.DB.Where("Name = ? and Admin = ?", r.Req.User.Name, r.Req.User.Admin).Delete(&db.Users{})
+	if q.RecordNotFound() {
+		r.Reply(404, shared.RespMessage("No such user"))
+		return
+	} else if q.Error != nil {
+		cfg.Log(1, q.Error)
+		r.Reply(500)
+		return
+	}
+	r.Reply(204)
+	return
 }
 
 /*
-User.Name => name
-User.Group => name of group
-Key.GroupPriv => Copy of the group private key, encrypted with the public key of the target admin
+User.Admin => admin/client users
 */
-func AdminGroupAssign(cfg *shared.Config, r shared.Request) {
-	// This function relies on the client sending a pre-computed group key.
-	// We can't do this on the server as it would involve having the ability to decrypt keys.
-	if r.Req.User.Group == "super" {
-		r.Reply(400, shared.RespMessage("Please use the super function to make an admin a superuser"))
+func UserList(cfg *shared.Config, r shared.Request) {
+	list := make([]shared.Message, 0)
+
+	rows, err := cfg.DB.Table("users").Select(
+		"users.name, groups.name").Where(
+		"users.admin = ?", r.Req.User.Admin).Joins(
+		"left join groups on users.gid = groups.id").Rows()
+	if err != nil {
+		cfg.Log(1, err)
+		r.Reply(500)
 		return
 	}
-	userGroupAssign(cfg, r, true)
+
+	for rows.Next() {
+		var m shared.Message
+		err = rows.Scan(&m.User.Name, &m.User.Group)
+		if err != nil {
+			cfg.Log(1, err)
+			r.Reply(500)
+			return
+		}
+		list = append(list, m)
+	}
+	r.Reply(200, list...)
+	return
 }

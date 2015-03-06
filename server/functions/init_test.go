@@ -14,11 +14,13 @@ import (
 var (
 	cfg     *shared.Config
 	session *auth.SessionInfo
+	unpriv  *auth.SessionInfo
 )
 
 func init() {
 	cfg = new(shared.Config)
 	session = new(auth.SessionInfo)
+	unpriv = new(auth.SessionInfo)
 
 	cfg.Startup.DB.Database = "skds_test"
 	cfg.Startup.DB.Host = "localhost"
@@ -27,9 +29,15 @@ func init() {
 
 	session.Name = "admin"
 	session.UID = 1
-	session.GID = 3
+	session.GID = shared.SuperGID
 	session.Admin = true
 	session.Super = true
+
+	unpriv.Name = "unpriv"
+	unpriv.UID = 3
+	unpriv.GID = shared.DefAdminGID
+	unpriv.Admin = true
+	unpriv.Super = false
 }
 
 func setupDB(cfg *shared.Config) (err error) {

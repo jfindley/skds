@@ -161,3 +161,77 @@ func GroupList(cfg *shared.Config, r shared.Request) {
 	r.Reply(200, list...)
 	return
 }
+
+/*
+This function relies on the client sending a pre-encrypted group key.
+We can't do this on the server as it would involve having the ability to decrypt keys.
+
+User.Name => name
+User.Admin => admin/client user
+User.Group => name of group
+Key.GroupPriv => Copy of the group private key, encrypted with the public key of the target admin
+*/
+func UserGroupAssign(cfg *shared.Config, r shared.Request) {
+	if r.Req.User.Group == "super" {
+		r.Reply(400, shared.RespMessage("Please use the super function to make an admin a superuser"))
+		return
+	}
+
+	var err error
+	if r.Req.Key.GroupPriv == nil && r.Req.User.Group != "default" {
+		r.Reply(400, shared.RespMessage("No group key provided, unable to assign group"))
+		return
+	}
+
+	var user db.Users
+	var group db.Groups
+
+	q := cfg.DB.Where("name = ? and admin = ?", r.Req.User.Name, r.Req.User.Admin).First(&user)
+	if q.RecordNotFound() {
+		r.Reply(404, shared.RespMessage("No such user"))
+		return
+	} else if q.Error != nil {
+		r.Reply(500)
+		return
+	}
+
+	q = cfg.DB.Where("name = ? and admin = ?", r.Req.User.Group, r.Req.User.Admin).First(&group)
+	if q.RecordNotFound() {
+		r.Reply(404, shared.RespMessage("No such group"))
+		return
+	} else if q.Error != nil {
+		r.Reply(500)
+		return
+	}
+
+	if user.GID == group.Id {
+		r.Reply(200, shared.RespMessage("User already member of this group"))
+		return
+	}
+
+	if !r.Session.CheckACL(cfg.DB, user, group) {
+		r.Reply(403)
+		return
+	}
+
+	user.GID = group.Id
+
+	if r.Req.User.Group == "default" {
+		user.GroupKey = nil
+	} else {
+		user.GroupKey, err = crypto.NewBinary(r.Req.Key.GroupPriv).Encode()
+		if err != nil {
+			cfg.Log(1, err)
+			r.Reply(500)
+			return
+		}
+	}
+
+	q = cfg.DB.Save(user)
+	if q.Error != nil {
+		r.Reply(500)
+		return
+	}
+	r.Reply(204)
+	return
+}

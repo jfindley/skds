@@ -9,624 +9,236 @@ shared.Message messages.
 package functions
 
 import (
-	"github.com/jfindley/skds/server/auth"
+	"github.com/jfindley/skds/crypto"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
 
 /*
-No input
+User.Key => public part of local key
 */
-func KeyList(cfg *shared.Config, r shared.Request) {
-	list := make([]shared.Message, 0)
-
-	rows, err := cfg.DB.Table("master_secrets").Select("name").Rows()
+func SetPubkey(cfg *shared.Config, r shared.Request) {
+	enc, err := crypto.NewBinary(r.Req.User.Key).Encode()
 	if err != nil {
-		return genericFailure(cfg, err)
+		cfg.Log(1, err)
+		r.Reply(500)
+		return
 	}
 
-	for rows.Next() {
-		var m shared.Message
-		err = rows.Scan(&m.Key.Name)
-		if err != nil {
-			return genericFailure(cfg, err)
-		}
-		list = append(list, m)
+	q := cfg.DB.First(&db.Users{}, r.Session.GetUID()).Update("PubKey", enc)
+	if q.Error != nil {
+		cfg.Log(1, q.Error)
+		r.Reply(500)
+		return
 	}
-	resp.ResponseData = list
-	resp.Response = "OK"
+	r.Reply(204)
 	return
 }
 
 /*
-Admin.Name => name
+User.Name => user name
+User.Admin => admin/client user
 */
-func KeyListAdmin(cfg *shared.Config, r shared.Request) {
-	list := make([]shared.Message, 0)
-
-	admin := new(db.Users)
-	q := cfg.DB.Where("name = ?", msg.User.Name).First(admin)
+func UserPubKey(cfg *shared.Config, r shared.Request) {
+	user := new(db.Users)
+	q := cfg.DB.Where("name = ? and admin = ?", r.Req.User.Name, r.Req.User.Admin).First(&user)
 	if q.RecordNotFound() {
-		return namedFailure(404, "No such admin")
+		r.Reply(404, shared.RespMessage("Client does not exist"))
+		return
 	}
 	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
+		cfg.Log(1, q.Error)
+		r.Reply(500)
+		return
 	}
 
-	rows, err := cfg.DB.Table("master_secrets").Select(
-		"master_secrets.name").Where(
-		"group_secrets.gid = ? or admin_secrets.uid = ?", admin.GID, admin.Id).Joins(
-		"left join group_secrets on master_secrets.id = group_secrets.sid left join admin_secrets on master_secrets.id = admin_secrets.sid").Rows()
+	var key crypto.Binary
+	var msg shared.Message
+
+	err := key.Decode(user.PubKey)
 	if err != nil {
-		return genericFailure(cfg, err)
+		cfg.Log(1, err)
+		r.Reply(500)
+		return
 	}
 
-	for rows.Next() {
-		var m shared.Message
-		err = rows.Scan(&m.Key.Name)
-		if err != nil {
-			return genericFailure(cfg, err)
-		}
-		list = append(list, m)
-	}
-	resp.ResponseData = list
-	resp.Response = "OK"
+	msg.Key.UserKey = key
+	r.Reply(200, msg)
 	return
 }
 
 /*
-Client.Name => name
+User.Group => group name
+User.Admin => admin/client group
 */
-func KeyListClient(cfg *shared.Config, r shared.Request) {
-	list := make([]shared.Message, 0)
-
-	client := new(db.Users)
-	q := cfg.DB.Where("name = ?", msg.Client.Name).First(client)
+func GroupPubKey(cfg *shared.Config, r shared.Request) {
+	var group db.Groups
+	q := cfg.DB.Where("name = ? and admin = ?", r.Req.User.Group, r.Req.User.Admin).First(&group)
 	if q.RecordNotFound() {
-		return namedFailure(404, "No such client")
+		r.Reply(404, shared.RespMessage("Group does not exist"))
+		return
 	}
 	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
+		cfg.Log(1, q.Error)
+		r.Reply(500)
+		return
 	}
 
-	rows, err := cfg.DB.Table("master_secrets").Select(
-		"master_secrets.name, group_secrets.path, client_secrets.path").Where(
-		"group_secrets.gid = ? or client_secrets.uid = ?", client.GID, client.Id).Joins(
-		"left join group_secrets on master_secrets.id = group_secrets.sid left join client_secrets on master_secrets.id = client_secrets.sid").Rows()
+	var key crypto.Binary
+	var msg shared.Message
+
+	err := key.Decode(group.PubKey)
 	if err != nil {
-		return genericFailure(cfg, err)
+		cfg.Log(1, err)
+		r.Reply(500)
+		return
 	}
 
-	for rows.Next() {
-		var m shared.Message
-		var (
-			cpath []byte
-			gpath []byte
-		)
-		err = rows.Scan(&m.Key.Name, &gpath, &cpath)
-		if err != nil {
-			println(err.Error())
-			return genericFailure(cfg, err)
-		}
-		if len(gpath) > 1 {
-			m.Key.Path = string(gpath)
-		} else {
-			m.Key.Path = string(cpath)
-		}
-		list = append(list, m)
-	}
-	resp.ResponseData = list
-	resp.Response = "OK"
-	return
-}
-
-/*
-Admin.Group (optional - for an admin group) => group name
-Client.Group (optional - for a client group) => group name
-*/
-func KeyListGroup(cfg *shared.Config, r shared.Request) {
-	list := make([]shared.Message, 0)
-
-	group, ret, err := dbGroupFromMessage(cfg, msg)
-	if err != nil {
-		return errorFailure(ret, err)
-	}
-
-	rows, err := cfg.DB.Table("master_secrets").Where(
-		"group_secrets.gid = ?", group.Id).Select(
-		"master_secrets.name").Joins(
-		"left join group_secrets on master_secrets.id = group_secrets.sid").Rows()
-	if err != nil {
-		return genericFailure(cfg, err)
-	}
-
-	for rows.Next() {
-		var m shared.Message
-		err = rows.Scan(&m.Key.Name)
-		if err != nil {
-			return genericFailure(cfg, err)
-		}
-		list = append(list, m)
-	}
-	resp.ResponseData = list
-	resp.Response = "OK"
-	return
-}
-
-/*
-Client.Name => client name
-*/
-func KeyPubClient(cfg *shared.Config, r shared.Request) {
-	client := new(db.Users)
-	q := cfg.DB.Where("name = ?", msg.Client.Name).First(client)
-	if q.RecordNotFound() {
-		return namedFailure(404, "No such client")
-	}
-	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-	resp.Client.Key = shared.HexDecode(client.Pubkey)
-	resp.Response = "OK"
+	msg.Key.GroupPub = key
+	r.Reply(200, msg)
 	return
 }
 
 /*
 No input
 */
-func KeyPubAdmin(cfg *shared.Config, r shared.Request) {
-	admin := new(db.Users)
-	q := cfg.DB.Where("name = ?", msg.User.Name).First(admin)
-	if q.RecordNotFound() {
-		return namedFailure(404, "No such admin")
-	}
-	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-	resp.Admin.Key = shared.HexDecode(admin.Pubkey)
-	resp.Response = "OK"
-	return
-}
-
-/*
-No input
-*/
-func KeySuper(cfg *shared.Config, r shared.Request) {
+func SuperPubKey(cfg *shared.Config, r shared.Request) {
 	group := new(db.Groups)
 	q := cfg.DB.First(group, shared.SuperGID)
 	if q.RecordNotFound() || q.Error != nil {
-		return genericFailure(cfg, q.Error)
+		cfg.Log(1, q.Error)
+		r.Reply(500)
+		return
 	}
-	resp.Key.GroupPub = shared.HexDecode(group.PubKey)
-	resp.Response = "OK"
+	var key crypto.Binary
+	var msg shared.Message
+	err := key.Decode(group.PubKey)
+	if err != nil {
+		cfg.Log(1, err)
+		r.Reply(500)
+		return
+	}
+	msg.Key.Key = key
+	r.Reply(200, msg)
 	return
 }
 
 /*
-Key.Name => name
-Key.Secret => encrypted payload
-Key.Key => unique encryption key for payload encrypted with the supergroup pubkey
-Key.Userkey (only required if called by non-super admin) => copy of above key, encrypted with admin local key
+User.Group => group name
+User.Admin => admin/client group
 */
-func KeyNew(cfg *shared.Config, r shared.Request) {
+func GroupPrivKey(cfg *shared.Config, r shared.Request) {
+	var group db.Groups
+
+	q := cfg.DB.Where("name = ? and admin = ?", r.Req.User.Group, r.Req.User.Admin).First(&group)
+	if q.RecordNotFound() {
+		r.Reply(404, shared.RespMessage("Group does not exist"))
+		return
+	}
+	if q.Error != nil {
+		cfg.Log(1, q.Error)
+		r.Reply(500)
+		return
+	}
+
+	if !r.Session.CheckACL(cfg.DB, group) {
+		r.Reply(403)
+		return
+	}
+
+	var key crypto.Binary
+	var msg shared.Message
+
+	err := key.Decode(group.PubKey)
+	if err != nil {
+		cfg.Log(1, err)
+		r.Reply(500)
+		return
+	}
+
+	msg.Key.GroupPub = key
+	r.Reply(200, msg)
+	return
+}
+
+/*
+Key.GroupPub => supergroup public key
+Key.GroupPriv => supergroup private key encrypted by the calling admin
+*/
+func SetSuperKey(cfg *shared.Config, r shared.Request) {
+	var group db.Groups
+	var user db.Users
+	var err error
+
 	tx := cfg.DB.Begin()
 	if tx.Error != nil {
-		return genericFailure(cfg, tx.Error)
+		cfg.Log(1, tx.Error)
+		r.Reply(500)
+		return
 	}
 	var commit bool
 
+	// Avoid having to manually rollback for each error
 	defer func() {
 		if !commit {
 			tx.Rollback()
 		}
 	}()
 
-	if msg.Key.Name == "" || msg.Key.Secret == nil || msg.Key.Key == nil {
-		return namedFailure(400, "Invalid key")
-	}
-	if !authobj.Super && msg.Key.Userkey == nil {
-		return namedFailure(400, "Invalid key")
-	}
-
-	key := new(db.MasterSecrets)
-	groupKey := new(db.GroupSecrets)
-
-	key.Name = msg.Key.Name
-
-	if !tx.NewRecord(key) {
-		return namedFailure(400, "Key already exists")
-	}
-
-	key.Secret = shared.HexEncode(msg.Key.Secret)
-
-	q := tx.Create(key)
+	q := tx.First(&group, shared.SuperGID)
 	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
+		cfg.Log(1, q.Error)
+		r.Reply(500)
+		return
 	}
 
-	groupKey.Secret = shared.HexEncode(msg.Key.Key)
-	groupKey.GID = shared.SuperGID
-	groupKey.Sid = key.Id // Set when the record is created
-
-	if !tx.NewRecord(groupKey) {
-		return namedFailure(400, "Supergroup key already exists")
+	if group.PubKey != nil {
+		r.Reply(409)
+		return
 	}
 
-	q = tx.Create(groupKey)
+	q = tx.First(&user, r.Session.GetUID())
 	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
+		cfg.Log(1, q.Error)
+		r.Reply(500)
+		return
 	}
 
-	if !authobj.Super {
-		adminSecret := new(db.UserSecrets)
-		adminSecret.Sid = key.Id
-		adminSecret.Uid = authobj.UID
-		adminSecret.Secret = msg.Key.Userkey
+	group.PubKey, err = crypto.NewBinary(r.Req.Key.GroupPub).Encode()
+	if err != nil {
+		cfg.Log(1, err)
+		r.Reply(500)
+		return
+	}
 
-		q = tx.Create(adminSecret)
-		if q.Error != nil {
-			return genericFailure(cfg, q.Error)
-		}
+	user.GroupKey, err = crypto.NewBinary(r.Req.Key.GroupPriv).Encode()
+	if err != nil {
+		cfg.Log(1, err)
+		r.Reply(500)
+		return
+	}
+
+	q = tx.Save(&group)
+	if q.Error != nil {
+		cfg.Log(1, q.Error)
+		r.Reply(500)
+		return
+	}
+
+	q = tx.Save(&user)
+	if q.Error != nil {
+		cfg.Log(1, q.Error)
+		r.Reply(500)
+		return
 	}
 
 	q = tx.Commit()
 	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
+		cfg.Log(1, q.Error)
+		r.Reply(500)
+		return
 	}
 	commit = true
-	resp.Response = "OK"
-	return
-}
 
-/*
-Key.Name => name
-This can be called by a non-super admin, but requires that a non-superadmin has an UserSecrets entry for that key.
-*/
-func KeyDel(cfg *shared.Config, r shared.Request) {
-	tx := cfg.DB.Begin()
-	if tx.Error != nil {
-		return genericFailure(cfg, tx.Error)
-	}
-	var commit bool
-
-	defer func() {
-		if !commit {
-			tx.Rollback()
-		}
-	}()
-
-	secret := new(db.MasterSecrets)
-	adminSecret := new(db.UserSecrets)
-	clientSecret := new(db.UserSecrets)
-	groupSecret := new(db.GroupSecrets)
-
-	q := tx.Where("name = ?", msg.Key.Name).First(secret)
-	if q.RecordNotFound() {
-		return namedFailure(404, "Secret not found")
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	if !authobj.Super {
-		q := tx.Where("Sid = ?", secret.Id).First(adminSecret)
-		if q.RecordNotFound() {
-			return namedFailure(403, "You do not have access to this secret")
-		}
-	}
-
-	q = tx.Delete(secret)
-	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	q = tx.Where("Sid = ? ", secret.Id).Delete(adminSecret)
-	if q.Error != nil && !q.RecordNotFound() {
-		return genericFailure(cfg, q.Error)
-	}
-
-	q = tx.Where("Sid = ? ", secret.Id).Delete(clientSecret)
-	if q.Error != nil && !q.RecordNotFound() {
-		return genericFailure(cfg, q.Error)
-	}
-
-	q = tx.Where("Sid = ? ", secret.Id).Delete(groupSecret)
-	if q.Error != nil && !q.RecordNotFound() {
-		return genericFailure(cfg, q.Error)
-	}
-
-	q = tx.Commit()
-	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-	commit = true
-	resp.Response = "OK"
-	return
-}
-
-/*
-Key.Name => name
-Key.Secret => encrypted payload
-Same access rules apply as for KeyDel
-*/
-func KeyUpdate(cfg *shared.Config, r shared.Request) {
-	secret := new(db.MasterSecrets)
-
-	q := cfg.DB.Where("name = ?", msg.Key.Name).First(secret)
-	if q.RecordNotFound() {
-		return namedFailure(404, "Secret not found")
-		return namedFailure(404, "Secret not found")
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	if !authobj.Super {
-		adminSecret := new(db.UserSecrets)
-		q := cfg.DB.Where("Sid = ?", secret.Id).First(adminSecret)
-		if q.RecordNotFound() {
-			return namedFailure(403, "You do not have access to this secret")
-		}
-	}
-
-	secret.Secret = shared.HexEncode(msg.Key.Secret)
-	q = cfg.DB.Save(secret)
-	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	resp.Response = "OK"
-	return
-}
-
-/*
-Admin.Group (optional - for an admin group) => group name
-Client.Group (optional - for a client group) => group name
-*/
-func KeyPubGroup(cfg *shared.Config, r shared.Request) {
-	group, ret, err := dbGroupFromMessage(cfg, msg)
-	if err != nil {
-		return errorFailure(ret, err)
-	}
-
-	resp.Key.GroupPub = shared.HexDecode(group.PubKey)
-
-	resp.Response = "OK"
-	return
-}
-
-/*
-Admin.Group (optional - for an admin group) => group name
-Client.Group (optional - for a client group) => group name
-*/
-func KeyPrivGroup(cfg *shared.Config, r shared.Request) {
-	group, ret, err := dbGroupFromMessage(cfg, msg)
-	if err != nil {
-		return errorFailure(ret, err)
-	}
-
-	resp.Key.GroupPriv = shared.HexDecode(group.PrivKey)
-
-	resp.Response = "OK"
-	return
-}
-
-/*
-Admin.Name => admin name
-Key.Name => secret name
-Key.Secret => secret encoded with the public key of the target admin
-*/
-func KeyAssignAdmin(cfg *shared.Config, r shared.Request) {
-	admin := new(db.Users)
-	secret := new(db.MasterSecrets)
-	adminSecret := new(db.UserSecrets)
-
-	if len(msg.Key.Secret) == 0 {
-		return namedFailure(400, "No secret provided")
-	}
-
-	q := cfg.DB.Where("name = ?", msg.User.Name).First(admin)
-	if q.RecordNotFound() {
-		return namedFailure(404, "Admin not found")
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	if admin.GID == shared.SuperGID {
-		return namedFailure(400, "Cannot assign a key to a superadmin")
-	}
-
-	q = cfg.DB.Where("name = ?", msg.Key.Name).First(secret)
-	if q.RecordNotFound() {
-		return namedFailure(404, "Secret not found")
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	adminSecret.Secret = shared.HexEncode(msg.Key.Secret)
-	adminSecret.Sid = secret.Id
-	adminSecret.Uid = admin.Id
-
-	q = cfg.DB.Create(adminSecret)
-	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	resp.Response = "OK"
-	return
-}
-
-/*
-Client.Name => client name
-Key.Name => secret name
-Key.Secret => secret encoded with the public key of the target group
-*/
-func KeyAssignClient(cfg *shared.Config, r shared.Request) {
-	client := new(db.Users)
-	secret := new(db.MasterSecrets)
-	clientSecret := new(db.UserSecrets)
-
-	if len(msg.Key.Secret) == 0 {
-		return namedFailure(400, "No secret provided")
-	}
-
-	q := cfg.DB.Where("name = ?", msg.Client.Name).First(client)
-	if q.RecordNotFound() {
-		return namedFailure(404, "Client not found")
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	q = cfg.DB.Where("name = ?", msg.Key.Name).First(secret)
-	if q.RecordNotFound() {
-		return namedFailure(404, "Secret not found")
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	clientSecret.Secret = shared.HexEncode(msg.Key.Secret)
-	clientSecret.Sid = secret.Id
-	clientSecret.Uid = client.Id
-
-	q = cfg.DB.Create(clientSecret)
-	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	resp.Response = "OK"
-	return
-}
-
-/*
-Admin.Group (optional - for an admin group) => group name
-Client.Group (optional - for a client group) => group name
-Key.Name => secret name
-Key.Secret => secret encoded with the public key of the target group
-*/
-func KeyAssignGroup(cfg *shared.Config, r shared.Request) {
-	if len(msg.Key.Secret) == 0 {
-		return namedFailure(400, "No secret provided")
-	}
-
-	group, ret, err := dbGroupFromMessage(cfg, msg)
-	if err != nil {
-		return errorFailure(ret, err)
-	}
-
-	secret := new(db.MasterSecrets)
-	groupSecret := new(db.GroupSecrets)
-
-	q := cfg.DB.Where("name = ?", msg.Key.Name).First(secret)
-	if q.RecordNotFound() {
-		return namedFailure(404, "Secret not found")
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	groupSecret.Secret = shared.HexEncode(msg.Key.Secret)
-	groupSecret.Sid = secret.Id
-	groupSecret.GID = group.Id
-
-	q = cfg.DB.Create(groupSecret)
-	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	resp.Response = "OK"
-	return
-}
-
-/*
-Admin.Name => admin name
-Key.Name => secret name
-*/
-func KeyRemoveAdmin(cfg *shared.Config, r shared.Request) {
-	admin := new(db.Users)
-	secret := new(db.MasterSecrets)
-	adminSecret := new(db.UserSecrets)
-
-	q := cfg.DB.Where("name = ?", msg.User.Name).First(admin)
-	if q.RecordNotFound() {
-		return namedFailure(404, "Admin not found")
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	if admin.GID == shared.SuperGID {
-		return namedFailure(400, "Cannot remove a key from a superadmin")
-	}
-
-	q = cfg.DB.Where("name = ?", msg.Key.Name).First(secret)
-	if q.RecordNotFound() {
-		return namedFailure(404, "Secret not found")
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	q = cfg.DB.Where("sid = ? and uid = ?", secret.Id, admin.Id).Delete(adminSecret)
-	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	resp.Response = "OK"
-	return
-}
-
-/*
-Client.Name => client name
-Key.Name => secret name
-*/
-func KeyRemoveClient(cfg *shared.Config, r shared.Request) {
-	client := new(db.Users)
-	secret := new(db.MasterSecrets)
-	clientSecret := new(db.UserSecrets)
-
-	q := cfg.DB.Where("name = ?", msg.Client.Name).First(client)
-	if q.RecordNotFound() {
-		return namedFailure(404, "Client not found")
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	q = cfg.DB.Where("name = ?", msg.Key.Name).First(secret)
-	if q.RecordNotFound() {
-		return namedFailure(404, "Secret not found")
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	q = cfg.DB.Where("sid = ? and uid = ?", secret.Id, client.Id).Delete(clientSecret)
-	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	resp.Response = "OK"
-	return
-}
-
-/*
-Admin.Group (optional - for an admin group) => group name
-Client.Group (optional - for a client group) => group name
-Key.Name => secret name
-*/
-func KeyRemoveGroup(cfg *shared.Config, r shared.Request) {
-	group, ret, err := dbGroupFromMessage(cfg, msg)
-	if err != nil {
-		return errorFailure(ret, err)
-	}
-
-	secret := new(db.MasterSecrets)
-	groupSecret := new(db.GroupSecrets)
-
-	q := cfg.DB.Where("name = ?", msg.Key.Name).First(secret)
-	if q.RecordNotFound() {
-		return namedFailure(404, "Secret not found")
-	} else if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	q = cfg.DB.Where("sid = ? and gid = ?", secret.Id, group.Id).Delete(groupSecret)
-	if q.Error != nil {
-		return genericFailure(cfg, q.Error)
-	}
-
-	resp.Response = "OK"
-	return
+	r.Reply(204)
 }
