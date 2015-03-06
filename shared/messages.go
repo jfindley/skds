@@ -74,7 +74,7 @@ type Request struct {
 func (r *Request) Parse(body []byte, resp http.ResponseWriter) bool {
 	r.writer = resp
 	err := json.Unmarshal(body, &r.Req)
-	if err != nil {
+	if err != nil && len(body) > 0 {
 		return false
 		http.Error(r.writer, "Unable to parse request", http.StatusBadRequest)
 	}
