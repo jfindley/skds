@@ -18,11 +18,14 @@ var maxLen = 200
 
 // Header names
 const (
-	hdrEnc     = "Content-Encoding"
-	hdrUA      = "User-Agent"
+	hdrEnc = "Content-Encoding"
+	hdrUA  = "User-Agent"
+	// Session ID header
 	HdrSession = "Session-ID"
-	HdrMAC     = "X-AUTH-MAC"
-	HdrKey     = "X-AUTH-KEY"
+	// MAC header
+	HdrMAC = "X-AUTH-MAC"
+	// Session key header
+	HdrKey = "X-AUTH-KEY"
 )
 
 type Session struct {
