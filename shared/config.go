@@ -91,7 +91,7 @@ func (c *Config) Decode(data []byte) error {
 }
 
 func (c *Config) StartLogging() error {
-	return c.logger.Start(cfg.Startup.LogLevel, cfg.Startup.LogFile)
+	return c.logger.Start(c.Startup.LogLevel, c.Startup.LogFile)
 }
 
 func (c *Config) StopLogging() error {
