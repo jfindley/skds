@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/jfindley/skds/dictionary"
+	"github.com/jfindley/skds/log"
 	"github.com/jfindley/skds/server/auth"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
@@ -39,7 +40,7 @@ func authentication(cfg *shared.Config, pool *auth.SessionPool, w http.ResponseW
 	if db.NotFound(err) {
 		req.Reply(401)
 	} else if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		req.Reply(500)
 		return
 	}
@@ -52,7 +53,7 @@ func authentication(cfg *shared.Config, pool *auth.SessionPool, w http.ResponseW
 
 	id, err := pool.Add(session)
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		return
 	}
 
