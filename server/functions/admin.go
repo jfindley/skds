@@ -10,6 +10,7 @@ package functions
 
 import (
 	"github.com/jfindley/skds/crypto"
+	"github.com/jfindley/skds/log"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
@@ -19,7 +20,7 @@ func GetCA(cfg *shared.Config, r shared.Request) {
 	var msg shared.Message
 	msg.X509.Cert, err = cfg.Runtime.CACert.Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -44,7 +45,7 @@ func AdminNew(cfg *shared.Config, r shared.Request) {
 
 	pass, err := crypto.NewPassword()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -53,7 +54,7 @@ func AdminNew(cfg *shared.Config, r shared.Request) {
 
 	hash, err := crypto.PasswordHash(pass)
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -66,7 +67,7 @@ func AdminNew(cfg *shared.Config, r shared.Request) {
 
 	q := cfg.DB.Create(user)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -97,7 +98,7 @@ func AdminSuper(cfg *shared.Config, r shared.Request) {
 		r.Reply(404, shared.RespMessage("User does not exist"))
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -109,14 +110,14 @@ func AdminSuper(cfg *shared.Config, r shared.Request) {
 	user.GID = shared.SuperGID
 	user.GroupKey, err = crypto.NewBinary(r.Req.Key.GroupPriv).Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
 
 	q = cfg.DB.Save(user)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -138,14 +139,14 @@ func UserPass(cfg *shared.Config, r shared.Request) {
 
 	enc, err := encrypted.Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
 
 	q := cfg.DB.First(&db.Users{}, r.Session.GetUID()).Update("Password", enc)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -163,7 +164,7 @@ func UserDel(cfg *shared.Config, r shared.Request) {
 		r.Reply(404, shared.RespMessage("No such user"))
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -182,7 +183,7 @@ func UserList(cfg *shared.Config, r shared.Request) {
 		"users.admin = ?", r.Req.User.Admin).Joins(
 		"left join groups on users.gid = groups.id").Rows()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -191,7 +192,7 @@ func UserList(cfg *shared.Config, r shared.Request) {
 		var m shared.Message
 		err = rows.Scan(&m.User.Name, &m.User.Group)
 		if err != nil {
-			cfg.Log(1, err)
+			cfg.Log(log.ERROR, err)
 			r.Reply(500)
 			return
 		}

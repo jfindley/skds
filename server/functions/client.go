@@ -12,6 +12,7 @@ import (
 	"database/sql"
 
 	"github.com/jfindley/skds/crypto"
+	"github.com/jfindley/skds/log"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
@@ -23,7 +24,7 @@ func ClientGetSecret(cfg *shared.Config, r shared.Request) {
 	var user db.Users
 	q := cfg.DB.First(&user, r.Session.GetUID())
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -31,7 +32,7 @@ func ClientGetSecret(cfg *shared.Config, r shared.Request) {
 	var groupPriv crypto.Binary
 	err = groupPriv.Decode(user.GroupKey)
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -43,14 +44,14 @@ func ClientGetSecret(cfg *shared.Config, r shared.Request) {
 		"UserSecrets.uid = ?", r.Session.GetUID()).Joins(
 		"left join UserSecrets on MasterSecrets.id = UserSecrets.sid").Rows()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
 
 	userSecrets, err := clientSecretScanner(rows, nil)
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -60,14 +61,14 @@ func ClientGetSecret(cfg *shared.Config, r shared.Request) {
 		"GroupSecrets.gid = ?", r.Session.GetGID()).Joins(
 		"left join GroupSecrets on MasterSecrets.id = GroupSecrets.sid").Rows()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
 
 	groupSecrets, err := clientSecretScanner(rows, groupPriv)
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -100,21 +101,21 @@ func ClientRegister(cfg *shared.Config, r shared.Request) {
 
 	user.Password, err = hash.Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
 
 	user.PubKey, err = crypto.NewBinary(r.Req.User.Key).Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
 
 	q := cfg.DB.Create(&user)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -162,7 +163,7 @@ func newUser(cfg *shared.Config, name string, admin bool) bool {
 	if !q.RecordNotFound() {
 		return false
 	} else if q.Error != nil && !q.RecordNotFound() {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		return false
 	}
 	return true

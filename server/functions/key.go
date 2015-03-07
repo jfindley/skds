@@ -10,6 +10,7 @@ package functions
 
 import (
 	"github.com/jfindley/skds/crypto"
+	"github.com/jfindley/skds/log"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
@@ -20,14 +21,14 @@ User.Key => public part of local key
 func SetPubkey(cfg *shared.Config, r shared.Request) {
 	enc, err := crypto.NewBinary(r.Req.User.Key).Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
 
 	q := cfg.DB.First(&db.Users{}, r.Session.GetUID()).Update("PubKey", enc)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -47,7 +48,7 @@ func UserPubKey(cfg *shared.Config, r shared.Request) {
 		return
 	}
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -57,7 +58,7 @@ func UserPubKey(cfg *shared.Config, r shared.Request) {
 
 	err := key.Decode(user.PubKey)
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -79,7 +80,7 @@ func GroupPubKey(cfg *shared.Config, r shared.Request) {
 		return
 	}
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -89,7 +90,7 @@ func GroupPubKey(cfg *shared.Config, r shared.Request) {
 
 	err := key.Decode(group.PubKey)
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -106,7 +107,7 @@ func SuperPubKey(cfg *shared.Config, r shared.Request) {
 	group := new(db.Groups)
 	q := cfg.DB.First(group, shared.SuperGID)
 	if q.RecordNotFound() || q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -114,7 +115,7 @@ func SuperPubKey(cfg *shared.Config, r shared.Request) {
 	var msg shared.Message
 	err := key.Decode(group.PubKey)
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -136,7 +137,7 @@ func GroupPrivKey(cfg *shared.Config, r shared.Request) {
 		return
 	}
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -151,7 +152,7 @@ func GroupPrivKey(cfg *shared.Config, r shared.Request) {
 
 	err := key.Decode(group.PubKey)
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -172,7 +173,7 @@ func SetSuperKey(cfg *shared.Config, r shared.Request) {
 
 	tx := cfg.DB.Begin()
 	if tx.Error != nil {
-		cfg.Log(1, tx.Error)
+		cfg.Log(log.ERROR, tx.Error)
 		r.Reply(500)
 		return
 	}
@@ -187,7 +188,7 @@ func SetSuperKey(cfg *shared.Config, r shared.Request) {
 
 	q := tx.First(&group, shared.SuperGID)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -199,42 +200,42 @@ func SetSuperKey(cfg *shared.Config, r shared.Request) {
 
 	q = tx.First(&user, r.Session.GetUID())
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
 
 	group.PubKey, err = crypto.NewBinary(r.Req.Key.GroupPub).Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
 
 	user.GroupKey, err = crypto.NewBinary(r.Req.Key.GroupPriv).Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
 
 	q = tx.Save(&group)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
 
 	q = tx.Save(&user)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
 
 	q = tx.Commit()
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}

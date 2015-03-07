@@ -10,6 +10,7 @@ package functions
 
 import (
 	"github.com/jfindley/skds/crypto"
+	"github.com/jfindley/skds/log"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
@@ -37,13 +38,13 @@ func GroupNew(cfg *shared.Config, r shared.Request) {
 
 	group.PubKey, err = crypto.NewBinary(r.Req.Key.GroupPub).Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
 	group.PrivKey, err = crypto.NewBinary(r.Req.Key.GroupPriv).Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -56,7 +57,7 @@ func GroupNew(cfg *shared.Config, r shared.Request) {
 
 	q = cfg.DB.Create(group)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -85,7 +86,7 @@ func GroupDel(cfg *shared.Config, r shared.Request) {
 
 	tx := cfg.DB.Begin()
 	if tx.Error != nil {
-		cfg.Log(1, tx.Error)
+		cfg.Log(log.ERROR, tx.Error)
 		r.Reply(500)
 		return
 	}
@@ -103,14 +104,14 @@ func GroupDel(cfg *shared.Config, r shared.Request) {
 		r.Reply(404, shared.RespMessage("No such group"))
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
 
 	q = tx.Delete(group)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -118,14 +119,14 @@ func GroupDel(cfg *shared.Config, r shared.Request) {
 	groupSecrets := new(db.GroupSecrets)
 	q = tx.Where("GID = ?", group.Id).Delete(groupSecrets)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
 
 	q = tx.Commit()
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -143,7 +144,7 @@ func GroupList(cfg *shared.Config, r shared.Request) {
 
 	rows, err := cfg.DB.Table("groups").Select("name, admin").Rows()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -152,7 +153,7 @@ func GroupList(cfg *shared.Config, r shared.Request) {
 		var m shared.Message
 		err = rows.Scan(&m.User.Group, &m.User.Admin)
 		if err != nil {
-			cfg.Log(1, err)
+			cfg.Log(log.ERROR, err)
 			r.Reply(500)
 			return
 		}
@@ -221,7 +222,7 @@ func UserGroupAssign(cfg *shared.Config, r shared.Request) {
 	} else {
 		user.GroupKey, err = crypto.NewBinary(r.Req.Key.GroupPriv).Encode()
 		if err != nil {
-			cfg.Log(1, err)
+			cfg.Log(log.ERROR, err)
 			r.Reply(500)
 			return
 		}

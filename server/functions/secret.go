@@ -10,7 +10,9 @@ package functions
 
 import (
 	"database/sql"
+
 	"github.com/jfindley/skds/crypto"
+	"github.com/jfindley/skds/log"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
@@ -23,7 +25,7 @@ func SecretList(cfg *shared.Config, r shared.Request) {
 
 	rows, err := cfg.DB.Table("MasterSecrets").Select("name").Rows()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -32,7 +34,7 @@ func SecretList(cfg *shared.Config, r shared.Request) {
 		var m shared.Message
 		err = rows.Scan(&m.Key.Name)
 		if err != nil {
-			cfg.Log(1, err)
+			cfg.Log(log.ERROR, err)
 			r.Reply(500)
 			return
 		}
@@ -54,7 +56,7 @@ func SecretListUser(cfg *shared.Config, r shared.Request) {
 		r.Reply(404, shared.RespMessage("User does not exist"))
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -67,7 +69,7 @@ func SecretListUser(cfg *shared.Config, r shared.Request) {
 		`left join GroupSecrets on MasterSecrets.id = GroupSecrets.sid
 		left join UserSecrets on MasterSecrets.id = UserSecrets.sid`).Rows()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -78,7 +80,7 @@ func SecretListUser(cfg *shared.Config, r shared.Request) {
 		var p2 sql.NullString
 		err = rows.Scan(&m.Key.Name, &p1, &p2)
 		if err != nil {
-			cfg.Log(1, err)
+			cfg.Log(log.ERROR, err)
 			r.Reply(500)
 			return
 		}
@@ -105,7 +107,7 @@ func SecretListGroup(cfg *shared.Config, r shared.Request) {
 		r.Reply(404, shared.RespMessage("Group does not exist"))
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -116,7 +118,7 @@ func SecretListGroup(cfg *shared.Config, r shared.Request) {
 		"GroupSecrets.gid = ?", group.Id).Joins(
 		"left join GroupSecrets on MasterSecrets.id = GroupSecrets.sid").Rows()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
@@ -126,7 +128,7 @@ func SecretListGroup(cfg *shared.Config, r shared.Request) {
 		var p sql.NullString
 		err = rows.Scan(&m.Key.Name, &p)
 		if err != nil {
-			cfg.Log(1, err)
+			cfg.Log(log.ERROR, err)
 			r.Reply(500)
 			return
 		}
@@ -148,7 +150,7 @@ Key.UserKey (only required if called by non-super admin) => copy of above key, e
 func SecretNew(cfg *shared.Config, r shared.Request) {
 	tx := cfg.DB.Begin()
 	if tx.Error != nil {
-		cfg.Log(1, tx.Error)
+		cfg.Log(log.ERROR, tx.Error)
 		r.Reply(500)
 		return
 	}
@@ -188,20 +190,20 @@ func SecretNew(cfg *shared.Config, r shared.Request) {
 
 	key.Secret, err = secret.Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
 	groupKey.Secret, err = superKey.Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
 
 	q := tx.Create(key)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -210,14 +212,14 @@ func SecretNew(cfg *shared.Config, r shared.Request) {
 	groupKey.SID = key.Id // Set when the record is created
 
 	if !tx.NewRecord(groupKey) {
-		cfg.Log(1, "Duplicate supergroup key")
+		cfg.Log(log.ERROR, "Duplicate supergroup key")
 		r.Reply(500)
 		return
 	}
 
 	q = tx.Create(groupKey)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -231,14 +233,14 @@ func SecretNew(cfg *shared.Config, r shared.Request) {
 		adminSecret.UID = r.Session.GetUID()
 		adminSecret.Secret, err = userKey.Encode()
 		if err != nil {
-			cfg.Log(1, err)
+			cfg.Log(log.ERROR, err)
 			r.Reply(500)
 			return
 		}
 
 		q = tx.Create(adminSecret)
 		if q.Error != nil {
-			cfg.Log(1, q.Error)
+			cfg.Log(log.ERROR, q.Error)
 			r.Reply(500)
 			return
 		}
@@ -246,7 +248,7 @@ func SecretNew(cfg *shared.Config, r shared.Request) {
 
 	q = tx.Commit()
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -261,7 +263,7 @@ Key.Name => name
 func SecretDel(cfg *shared.Config, r shared.Request) {
 	tx := cfg.DB.Begin()
 	if tx.Error != nil {
-		cfg.Log(1, tx.Error)
+		cfg.Log(log.ERROR, tx.Error)
 		r.Reply(500)
 		return
 	}
@@ -280,7 +282,7 @@ func SecretDel(cfg *shared.Config, r shared.Request) {
 		r.Reply(404)
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -292,28 +294,28 @@ func SecretDel(cfg *shared.Config, r shared.Request) {
 
 	q = tx.Where("SID = ?", secret.Id).Delete(&db.UserSecrets{})
 	if q.Error != nil && !q.RecordNotFound() {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
 
 	q = tx.Where("SID = ?", secret.Id).Delete(&db.GroupSecrets{})
 	if q.Error != nil && !q.RecordNotFound() {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
 
 	q = tx.Delete(secret)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
 
 	q = tx.Commit()
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -336,7 +338,7 @@ func SecretUpdate(cfg *shared.Config, r shared.Request) {
 		r.Reply(404)
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -348,14 +350,14 @@ func SecretUpdate(cfg *shared.Config, r shared.Request) {
 
 	secret.Secret, err = crypto.NewBinary(r.Req.Key.Secret).Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
 
 	q = cfg.DB.Save(secret)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -386,7 +388,7 @@ func SecretAssignUser(cfg *shared.Config, r shared.Request) {
 		r.Reply(404, shared.RespMessage("Group does not exist"))
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -401,7 +403,7 @@ func SecretAssignUser(cfg *shared.Config, r shared.Request) {
 		r.Reply(404, shared.RespMessage("Secret does not exist"))
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -413,7 +415,7 @@ func SecretAssignUser(cfg *shared.Config, r shared.Request) {
 
 	userSecret.Secret, err = crypto.NewBinary(r.Req.Key.Secret).Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 	}
 	userSecret.SID = secret.Id
@@ -421,7 +423,7 @@ func SecretAssignUser(cfg *shared.Config, r shared.Request) {
 
 	q = cfg.DB.Create(&userSecret)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -452,7 +454,7 @@ func SecretAssignGroup(cfg *shared.Config, r shared.Request) {
 		r.Reply(404, shared.RespMessage("Group does not exist"))
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -462,7 +464,7 @@ func SecretAssignGroup(cfg *shared.Config, r shared.Request) {
 		r.Reply(404, shared.RespMessage("Secret does not exist"))
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -474,7 +476,7 @@ func SecretAssignGroup(cfg *shared.Config, r shared.Request) {
 
 	groupSecret.Secret, err = crypto.NewBinary(r.Req.Key.Secret).Encode()
 	if err != nil {
-		cfg.Log(1, err)
+		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 	}
 	groupSecret.SID = secret.Id
@@ -482,7 +484,7 @@ func SecretAssignGroup(cfg *shared.Config, r shared.Request) {
 
 	q = cfg.DB.Create(&groupSecret)
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -505,7 +507,7 @@ func SecretRemoveUser(cfg *shared.Config, r shared.Request) {
 		r.Reply(404, shared.RespMessage("Group does not exist"))
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -525,14 +527,14 @@ func SecretRemoveUser(cfg *shared.Config, r shared.Request) {
 		r.Reply(404, shared.RespMessage("Secret does not exist"))
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
 
 	q = cfg.DB.Where("sid = ? and uid = ?", secret.Id, user.Id).Delete(&db.UserSecrets{})
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -555,7 +557,7 @@ func SecretRemoveGroup(cfg *shared.Config, r shared.Request) {
 		r.Reply(404, shared.RespMessage("Group does not exist"))
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
@@ -575,14 +577,14 @@ func SecretRemoveGroup(cfg *shared.Config, r shared.Request) {
 		r.Reply(404, shared.RespMessage("Secret does not exist"))
 		return
 	} else if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
 
 	q = cfg.DB.Where("sid = ? and gid = ?", secret.Id, group.Id).Delete(&db.GroupSecrets{})
 	if q.Error != nil {
-		cfg.Log(1, q.Error)
+		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return
 	}
