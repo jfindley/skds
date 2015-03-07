@@ -2,15 +2,12 @@ package shared
 
 import (
 	"bytes"
-	"flag"
-	"fmt"
 	"github.com/BurntSushi/toml"
 	"github.com/jinzhu/gorm"
 	"io"
-	"io/ioutil"
-	"strconv"
 
 	"github.com/jfindley/skds/crypto"
+	"github.com/jfindley/skds/log"
 )
 
 const (
@@ -32,7 +29,7 @@ type Config struct {
 	Startup Startup // These are stored in the config file
 	DB      gorm.DB // DB interface (only used in server mode)
 	Session Session // Admin/Client transport data
-	Mode    string  // Server|Admin|Client
+	logger  log.Logger
 }
 
 // Runtime attributes.
@@ -57,7 +54,7 @@ type Startup struct {
 	Address  string
 	User     string
 	LogFile  string
-	LogLevel int
+	LogLevel log.LogLevel
 	Version  string
 	Crypto   StartupCrypto
 	DB       DBSettings
@@ -82,63 +79,62 @@ type StartupCrypto struct {
 	ServerCert string
 }
 
-func ReadArgs() (cfg Config, install bool, args []string) {
-	flag.StringVar(&cfg.Startup.Dir, "c", "/etc/skds/", "Certificate directory.")
-	flag.IntVar(&cfg.Startup.LogLevel, "d", 1, "Log level in the range 0 to 4.")
-	flag.StringVar(&cfg.Startup.LogFile, "l", "STDOUT", "Logfile.  Use STDOUT for console logging.")
-	flag.BoolVar(&install, "setup", false, "Run setup.  Caution: this will cause data loss if run after first install.")
-	flag.Parse()
-	args = flag.Args()
-	return
+func (c *Config) Encode() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	err := toml.NewEncoder(buf).Encode(&c.Startup)
+	return buf.Bytes(), err
 }
 
-func (s *Startup) Read(file string) (err error) {
-	path := fmt.Sprintf("%s/%s", s.Dir, file)
-	toml.DecodeFile(path, s)
-	return
+func (c *Config) Decode(data []byte) error {
+	_, err := toml.Decode(string(data), &c.Startup)
+	return err
 }
 
-func (s *Startup) Write(file string) (err error) {
-	path := fmt.Sprintf("%s/%s", s.Dir, file)
-	b := new(bytes.Buffer)
-	if err = toml.NewEncoder(b).Encode(s); err != nil {
-		return
-	}
-	if err = ioutil.WriteFile(path, b.Bytes(), 0644); err != nil {
-		return
-	}
-	return
+func (c *Config) StartLogging() error {
+	return c.logger.Start(cfg.Startup.LogLevel, cfg.Startup.LogFile)
+}
+
+func (c *Config) StopLogging() error {
+	return c.logger.Stop()
+}
+
+func (c *Config) Log(level log.LogLevel, values ...interface{}) {
+	c.logger.Log(level, values...)
+}
+
+func (c *Config) Fatal(values ...interface{}) {
+	c.logger.Fatal(values...)
 }
 
 // TODO: we're no longer setting most options this way.
 // when logging gets re-written, get rid of this.
 
 // Set options at runtime with an Option method
-type Option func(*Config)
+// type Option func(*Config)
 
-func (c *Config) Option(opts ...Option) {
-	for _, opt := range opts {
-		opt(c)
-	}
-}
+// func (c *Config) Option(opts ...Option) {
+// 	for _, opt := range opts {
+// 		opt(c)
+// 	}
+// }
 
-// Allow commandline options to override config
-type dynamicOpt func(*flag.Flag)
+// // Allow commandline options to override config
+// type dynamicOpt func(*flag.Flag)
 
-func SetOverrides(c *Config) dynamicOpt {
-	return func(f *flag.Flag) {
-		// c.Log(3, f.Name, f.Value.String())
-		switch f.Name {
-		case "l":
-			c.Startup.LogFile = f.Value.String()
-			c.Option(LogFile())
-		case "d":
-			level, err := strconv.Atoi(f.Value.String())
-			if err != nil {
-				c.Log(1, "Invalid log level specified, ignoring")
-			} else {
-				c.Option(Verbosity(level))
-			}
-		}
-	}
-}
+// func SetOverrides(c *Config) dynamicOpt {
+// 	return func(f *flag.Flag) {
+// 		// c.Log(3, f.Name, f.Value.String())
+// 		switch f.Name {
+// 		case "l":
+// 			c.Startup.LogFile = f.Value.String()
+// 			c.Option(LogFile())
+// 		case "d":
+// 			level, err := strconv.Atoi(f.Value.String())
+// 			if err != nil {
+// 				c.Log(1, "Invalid log level specified, ignoring")
+// 			} else {
+// 				c.Option(Verbosity(level))
+// 			}
+// 		}
+// 	}
+// }
