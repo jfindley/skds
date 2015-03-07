@@ -1,89 +1,123 @@
 package main
 
 import (
-	"errors"
 	"flag"
+	"fmt"
 	"net/http"
+	"os"
 	"runtime"
 
-	"github.com/jfindley/skds/config"
 	"github.com/jfindley/skds/dictionary"
+	"github.com/jfindley/skds/log"
 	"github.com/jfindley/skds/server/auth"
-	"github.com/jfindley/skds/transport"
+	"github.com/jfindley/skds/server/db"
+	"github.com/jfindley/skds/shared"
 )
 
-func ReadArgs() (cfg config.Config, install bool) {
-	flag.StringVar(&cfg.Startup.Dir, "c", "/etc/skds/", "COnfiguration directory.")
-	flag.IntVar(&cfg.Startup.LogLevel, "d", 1, "Log level in the range 0 to 3.")
-	flag.StringVar(&cfg.Startup.LogFile, "l", "STDOUT", "Logfile.  Use STDOUT for console logging.")
-	flag.BoolVar(&install, "setup", false, "Run setup.  Caution: this will cause data loss if run after first install.")
-	flag.Parse()
-	return
+var cfgFile string
+
+func init() {
+	flag.StringVar(&cfgFile, "/etc/skds/skds.conf", "-f", "Config file location")
 }
 
-func loadConfig(cfg *config.Config) (err error) {
+func readFiles(cfg *shared.Config) (install bool, err error) {
 
-	// Ignore extra arguments
-	initCfg, install := ReadArgs()
-	*cfg = initCfg
-
-	if install {
-		err = Setup(cfg)
-	} else {
-		err = cfg.Startup.Read("server.conf")
-		if err != nil {
-			return errors.New("Cannot parse config file")
-		}
-		flag.Visit(config.SetOverrides(cfg))
-		// We connect to the DB early, so we can init the tables if needed
-		err = cfg.DBConnect()
+	err = shared.Read(cfg.Runtime.CACert, cfg.Startup.Crypto.CACert)
+	if os.IsNotExist(err) {
+		install = true
+	} else if err != nil {
+		return
 	}
+
+	err = shared.Read(cfg.Runtime.CAKey, cfg.Startup.Crypto.CAKey)
+	if os.IsNotExist(err) {
+		if !install {
+			return false, fmt.Errorf("Missing file: %s", cfg.Startup.Crypto.CAKey)
+		}
+	} else if err != nil {
+		return
+	} else if install {
+		return false, fmt.Errorf("Missing file: %s", cfg.Startup.Crypto.CACert)
+	}
+
+	err = shared.Read(cfg.Runtime.Cert, cfg.Startup.Crypto.Cert)
+	if os.IsNotExist(err) {
+		if !install {
+			return false, fmt.Errorf("Missing file: %s", cfg.Startup.Crypto.Cert)
+		}
+	} else if err != nil {
+		return
+	}
+
+	err = shared.Read(cfg.Runtime.Key, cfg.Startup.Crypto.Key)
+	if os.IsNotExist(err) {
+		if !install {
+			return false, fmt.Errorf("Missing file: %s", cfg.Startup.Crypto.Key)
+		}
+	} else if err != nil {
+		return
+	}
+
 	return
 }
 
 func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
-	cfg := new(config.Config)
-	err := loadConfig(cfg)
+	flag.Parse()
+
+	cfg := new(shared.Config)
+
+	err := shared.Read(cfg, cfgFile)
+	if err != nil {
+		fmt.Println("Cannot read config file:", err)
+		os.Exit(2)
+	}
+
+	err = cfg.StartLogging()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	cfg.DB, err = db.Connect(cfg.Startup.DB)
 	if err != nil {
 		cfg.Fatal(err)
 	}
 
-	err = cfg.ReadFiles(config.CACert(), config.CAKey(), config.Cert(), config.Key())
-	cfg.Option(config.CAPool())
+	install, err := readFiles(cfg)
 	if err != nil {
 		cfg.Fatal(err)
 	}
 
-	urls := dictionary.Dictionary.URLDict()
+	if install {
+		err = setup(cfg)
+		if err != nil {
+			cfg.Fatal(err)
+		}
+	}
+
 	pool := new(auth.SessionPool)
+	server := new(shared.Server)
 
 	go pool.Pruner()
 
-	tlsSocket, server, mux, err := transport.ServerInit(cfg)
-	if err != nil {
-		cfg.Fatal(err)
-	}
+	server.New(cfg)
 
-	// Authentication
-	mux.HandleFunc("/auth/admin", func(w http.ResponseWriter, r *http.Request) {
-		authRequest(cfg, pool, w, r, auth.Admin)
-	})
-	mux.HandleFunc("/auth/client", func(w http.ResponseWriter, r *http.Request) {
-		authRequest(cfg, pool, w, r, auth.Client)
+	server.Mux.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
+		authentication(cfg, pool, w, r)
 	})
 
-	for url, fn := range urls {
+	for url, fn := range dictionary.Dictionary {
 		// Copy references so they are not overwritten
 		f := fn
-		mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
-			apiRequest(cfg, pool, f, w, r)
+		server.Mux.HandleFunc(url, func(w http.ResponseWriter, r *http.Request) {
+			api(cfg, pool, f, w, r)
 		})
 	}
 
-	cfg.Log(2, "SKDS Server version", config.SkdsVersion, "started")
+	cfg.Log(log.INFO, "SKDS Server version", shared.SkdsVersion, "started")
 
-	server.Serve(*tlsSocket)
+	server.Start()
 
 }

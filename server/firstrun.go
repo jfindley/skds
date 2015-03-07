@@ -1,103 +1,75 @@
 package main
 
 import (
-	"os"
-
-	"github.com/jfindley/skds/config"
-	"github.com/jfindley/skds/crypto"
+	"github.com/jfindley/skds/log"
 	"github.com/jfindley/skds/server/db"
+	"github.com/jfindley/skds/shared"
 )
 
-func Setup(cfg *config.Config) (err error) {
-	// TODO: we should ship a default config file instead
-	loadDefaults(cfg)
+func setup(cfg *shared.Config) (err error) {
 
-	_, err = os.Stat(cfg.Startup.Dir)
-	if os.IsNotExist(err) {
-		err = os.Mkdir(cfg.Startup.Dir, 0700)
-		if err != nil {
-			return
-		}
-	}
-
-	cfg.Option(config.LogFile())
-
-	// Make sure we can connect with the details given, otherwise abort
-	err = cfg.DBConnect()
+	cfg.Log(log.DEBUG, "Creating CA key")
+	err = cfg.Runtime.CAKey.Generate()
 	if err != nil {
-		cfg.Log(0, "Could not connect to DB:", err)
 		return
 	}
-	// Write the config file to disk
-	cfg.Startup.Write("server.conf")
-	// Generate the CA and write it to disk
-	cfg.Log(3, "Generating a new CA and server cert")
-	cfg.Runtime.CAKey, err = crypto.GenKey()
+	err = shared.Write(cfg.Runtime.CAKey, cfg.Startup.Crypto.CAKey)
 	if err != nil {
-		cfg.Log(0, "Error generating CA key:", err)
 		return
 	}
-	cfg.Runtime.CACert, err = crypto.GenCert(
-		cfg.Startup.Name+" CA",
+
+	cfg.Log(log.DEBUG, "Creating CA cert")
+	err = cfg.Runtime.CACert.Generate(
+		"SKDS CA",
 		true,
-		30,
-		&cfg.Runtime.CAKey.PublicKey,
+		10,
+		cfg.Runtime.CAKey.Public(),
 		cfg.Runtime.CAKey,
-		nil,
-	)
+		nil)
 	if err != nil {
-		cfg.Log(0, "Error generating CA cert:", err)
+		return
+	}
+	err = shared.Write(cfg.Runtime.CACert, cfg.Startup.Crypto.CACert)
+	if err != nil {
 		return
 	}
 
-	// Now generate the server certificate from the CA
-	cfg.Runtime.Key, err = crypto.GenKey()
+	cfg.Log(log.DEBUG, "Creating server key")
+	err = cfg.Runtime.Key.Generate()
 	if err != nil {
-		cfg.Log(0, "Error generating server key:", err)
+		return
+	}
+	err = shared.Write(cfg.Runtime.Key, cfg.Startup.Crypto.Key)
+	if err != nil {
 		return
 	}
 
-	// TODO: Implement shorter length, rotating certs
-	cfg.Runtime.Cert, err = crypto.GenCert(
+	cfg.Log(log.DEBUG, "Creating server cert")
+	err = cfg.Runtime.Cert.Generate(
 		cfg.Startup.Name,
 		false,
-		10,
-		&cfg.Runtime.Key.PublicKey,
+		5,
+		cfg.Runtime.Key.Public(),
 		cfg.Runtime.CAKey,
-		cfg.Runtime.CACert,
-	)
-	if err != nil {
-		cfg.Log(0, "Error generating server cert:", err)
-		return
-	}
-	err = cfg.WriteFiles(config.CACert(), config.CAKey(), config.Cert(), config.Key())
+		cfg.Runtime.CACert)
 	if err != nil {
 		return
 	}
-	cfg.Log(3, "Creating DB")
-	err = db.InitDB(cfg)
+	err = shared.Write(cfg.Runtime.Cert, cfg.Startup.Crypto.Cert)
 	if err != nil {
 		return
 	}
-	err = db.CreateDefaults(cfg)
+
+	cfg.Log(log.DEBUG, "Creating database tables")
+	err = db.InitTables(cfg.DB)
+	if err != nil {
+		return
+	}
+
+	cfg.Log(log.DEBUG, "Creating default users and group")
+	err = db.CreateDefaults(cfg.DB)
 	if err != nil {
 		return
 	}
 	return
-}
-
-func loadDefaults(cfg *config.Config) {
-	// cfg.Dir = "/etc/skds"
-	cfg.Startup.Name = "server.skds.com"
-	cfg.Startup.Address = "0.0.0.0:8443"
-	// cfg.Startup.LogFile = "STDOUT"
-	// cfg.Startup.LogLevel = 1
-	cfg.Startup.Crypto.CACert = "ca.crt"
-	cfg.Startup.Crypto.CAKey = "ca.key"
-	cfg.Startup.Crypto.Cert = "server.crt"
-	cfg.Startup.Crypto.Key = "server.key"
-	cfg.Startup.DB.Host = "localhost"
-	cfg.Startup.DB.User = "root"
-	cfg.Startup.DB.Pass = ""
-	cfg.Startup.DB.Database = "skds"
 }
