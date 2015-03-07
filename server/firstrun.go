@@ -46,7 +46,7 @@ func setup(cfg *shared.Config) (err error) {
 
 	cfg.Log(log.DEBUG, "Creating server cert")
 	err = cfg.Runtime.Cert.Generate(
-		cfg.Startup.Name,
+		cfg.Startup.Hostname,
 		false,
 		5,
 		cfg.Runtime.Key.Public(),

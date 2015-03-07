@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"runtime"
+	"syscall"
 
 	"github.com/jfindley/skds/dictionary"
 	"github.com/jfindley/skds/log"
@@ -17,7 +19,7 @@ import (
 var cfgFile string
 
 func init() {
-	flag.StringVar(&cfgFile, "/etc/skds/skds.conf", "-f", "Config file location")
+	flag.StringVar(&cfgFile, "f", "/etc/skds/skds.conf", "Config file location.")
 }
 
 func readFiles(cfg *shared.Config) (install bool, err error) {
@@ -58,7 +60,7 @@ func readFiles(cfg *shared.Config) (install bool, err error) {
 		return
 	}
 
-	return
+	return install, nil
 }
 
 func main() {
@@ -67,6 +69,7 @@ func main() {
 	flag.Parse()
 
 	cfg := new(shared.Config)
+	cfg.New()
 
 	err := shared.Read(cfg, cfgFile)
 	if err != nil {
@@ -80,17 +83,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	cfg.Log(log.DEBUG, "Connecting to DB")
 	cfg.DB, err = db.Connect(cfg.Startup.DB)
 	if err != nil {
 		cfg.Fatal(err)
 	}
 
+	cfg.Log(log.DEBUG, "Reading keys and certificates from disk")
 	install, err := readFiles(cfg)
 	if err != nil {
 		cfg.Fatal(err)
 	}
 
 	if install {
+		cfg.Log(log.INFO, "Performing first-run install")
 		err = setup(cfg)
 		if err != nil {
 			cfg.Fatal(err)
@@ -102,7 +108,20 @@ func main() {
 
 	go pool.Pruner()
 
-	server.New(cfg)
+	err = server.New(cfg)
+	if err != nil {
+		cfg.Fatal(err)
+	}
+
+	sigs := make(chan os.Signal, 1)
+
+	go func() {
+		<-sigs
+		cfg.Log(log.INFO, "Server shutting down")
+		server.Stop()
+	}()
+
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
 	server.Mux.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
 		authentication(cfg, pool, w, r)
@@ -116,8 +135,9 @@ func main() {
 		})
 	}
 
-	cfg.Log(log.INFO, "SKDS Server version", shared.SkdsVersion, "started")
+	cfg.Log(log.INFO, "SKDS Server version", shared.Version, "started")
 
 	server.Start()
 
+	server.Wait()
 }

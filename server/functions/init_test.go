@@ -3,7 +3,6 @@ package functions
 // This sets up the various common parts for the tests in this package
 
 import (
-	"net/http"
 	"net/http/httptest"
 
 	"github.com/jfindley/skds/server/auth"
@@ -60,13 +59,9 @@ func setupDB(cfg *shared.Config) (err error) {
 func respRecorder() (shared.Request, *httptest.ResponseRecorder) {
 	var r shared.Request
 
-	req := new(http.Request)
 	rec := httptest.NewRecorder()
 
-	err := r.New(req, rec)
-	if err != nil {
-		panic(err)
-	}
+	r.Parse(nil, rec)
 
 	return r, rec
 }
