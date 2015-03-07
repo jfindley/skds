@@ -12,7 +12,7 @@ import (
 
 const (
 	// Software versin
-	SkdsVersion = "0.1-HEAD"
+	Version = "0.1-HEAD"
 	// DefClientGID is the default client group ID
 	DefClientGID = 1
 	// DefAdminGID is the default admin group ID
@@ -50,21 +50,20 @@ type Runtime struct {
 // These can be written to the config file safely
 type Startup struct {
 	Dir      string // Directory where certs etc are stored
-	Name     string // Node name
+	Hostname string // Hostname
 	Address  string
 	User     string
 	LogFile  string
 	LogLevel log.LogLevel
-	Version  string
-	Crypto   StartupCrypto
-	DB       DBSettings
+	Crypto   StartupCrypto `toml:"files"`
+	DB       DBSettings    `toml:"database"`
 }
 
 type DBSettings struct {
 	Host     string
 	Port     string
 	User     string
-	Pass     string
+	Pass     string `toml:"Password"`
 	Database string
 	Driver   string
 }
@@ -90,6 +89,17 @@ func (c *Config) Decode(data []byte) error {
 	return err
 }
 
+func (c *Config) New() {
+	c.Runtime.Key = new(crypto.TLSKey)
+	c.Runtime.CAKey = new(crypto.TLSKey)
+
+	c.Runtime.Cert = new(crypto.TLSCert)
+	c.Runtime.CACert = new(crypto.TLSCert)
+	c.Runtime.CA = new(crypto.CertPool)
+
+	c.Runtime.Keypair = new(crypto.Key)
+}
+
 func (c *Config) StartLogging() error {
 	return c.logger.Start(c.Startup.LogLevel, c.Startup.LogFile)
 }
@@ -105,36 +115,3 @@ func (c *Config) Log(level log.LogLevel, values ...interface{}) {
 func (c *Config) Fatal(values ...interface{}) {
 	c.logger.Fatal(values...)
 }
-
-// TODO: we're no longer setting most options this way.
-// when logging gets re-written, get rid of this.
-
-// Set options at runtime with an Option method
-// type Option func(*Config)
-
-// func (c *Config) Option(opts ...Option) {
-// 	for _, opt := range opts {
-// 		opt(c)
-// 	}
-// }
-
-// // Allow commandline options to override config
-// type dynamicOpt func(*flag.Flag)
-
-// func SetOverrides(c *Config) dynamicOpt {
-// 	return func(f *flag.Flag) {
-// 		// c.Log(3, f.Name, f.Value.String())
-// 		switch f.Name {
-// 		case "l":
-// 			c.Startup.LogFile = f.Value.String()
-// 			c.Option(LogFile())
-// 		case "d":
-// 			level, err := strconv.Atoi(f.Value.String())
-// 			if err != nil {
-// 				c.Log(1, "Invalid log level specified, ignoring")
-// 			} else {
-// 				c.Option(Verbosity(level))
-// 			}
-// 		}
-// 	}
-// }

@@ -64,7 +64,6 @@ type ClientSession interface {
 
 type Request struct {
 	Req     Message
-	Headers http.Header
 	Session ClientSession
 	writer  http.ResponseWriter
 }

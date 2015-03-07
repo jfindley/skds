@@ -151,7 +151,7 @@ func (s *Session) Login(cfg *Config) (err error) {
 }
 
 func (s *Session) setHeaders(request *http.Request, data []byte) {
-	request.Header.Add(hdrUA, "SKDS version "+SkdsVersion)
+	request.Header.Add(hdrUA, "SKDS version "+Version)
 	if data != nil {
 		request.Header.Add(hdrEnc, "application/json")
 		request.ContentLength = int64(len(data))

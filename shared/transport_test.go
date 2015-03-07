@@ -92,6 +92,8 @@ func TestStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+
+	srv.Stop()
 }
 
 func TestCustomDialer(t *testing.T) {

@@ -40,6 +40,7 @@ type Server struct {
 	tls    *tls.Config
 	server *http.Server
 	socket net.Listener
+	wchan  chan bool
 }
 
 func (s *Server) New(cfg *Config) (err error) {
@@ -55,17 +56,24 @@ func (s *Server) New(cfg *Config) (err error) {
 	s.server = new(http.Server)
 	s.server.Addr = cfg.Startup.Address
 	s.server.Handler = s.Mux
+	s.wchan = make(chan bool)
 	return
 }
 
 func (s *Server) Start() {
 	go func() {
-		err := s.server.Serve(s.socket)
-		if err != nil {
-			panic(err)
-		}
+		s.server.Serve(s.socket)
+		s.wchan <- true
 	}()
 	return
+}
+
+func (s *Server) Wait() {
+	<-s.wchan
+}
+
+func (s *Server) Stop() {
+	s.socket.Close()
 }
 
 func generateTLS(cfg *Config) *tls.Config {
