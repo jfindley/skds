@@ -34,8 +34,9 @@ Signed binaries are coming soon.  In the meantime, simply clone this repo and fo
 
 How secure is it?
 -----
-Each secret is individually encrypted with a unique key, using the excellent NaCL cryptographic library (http://nacl.cr.yp.to/)
-
+Every effort has been made to make this software as secure as possible.
 The server storing the keys never sees the secrets used to encrypt them, so a compromise of the server can never reveal the keys stored on it.
+
+Furthermore, each secret is individually encrypted with a unique key, using the excellent NaCL cryptographic library (http://nacl.cr.yp.to/)
 
 Additionally communication takes place over TLS connections, with certificate pinning to prevent impersonation.
