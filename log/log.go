@@ -9,10 +9,10 @@ import (
 type LogLevel int
 
 const (
-	ERROR LogLevel = iota
-	WARN
-	INFO
-	DEBUG
+	ERROR LogLevel = iota // 0
+	WARN                  // 1
+	INFO                  // 2
+	DEBUG                 // 3
 )
 
 type Logger struct {
@@ -26,7 +26,7 @@ func (l *Logger) Start(level LogLevel, file string) (err error) {
 	if file == "" {
 		l.fh = os.Stdout
 	} else {
-		l.fh, err = os.OpenFile(file, os.O_APPEND|os.O_WRONLY, os.FileMode(0660))
+		l.fh, err = os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, os.FileMode(0660))
 	}
 	return
 }

@@ -13,8 +13,7 @@ func TestStart(t *testing.T) {
 		t.Fatal(err)
 	}
 	tmpfile.Close()
-
-	defer os.Remove(tmpfile.Name())
+	os.Remove(tmpfile.Name())
 
 	var l Logger
 
@@ -22,6 +21,7 @@ func TestStart(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(tmpfile.Name())
 
 	err = l.Stop()
 	if err != nil {
@@ -44,8 +44,7 @@ func TestWrite(t *testing.T) {
 		t.Fatal(err)
 	}
 	tmpfile.Close()
-
-	defer os.Remove(tmpfile.Name())
+	os.Remove(tmpfile.Name())
 
 	var l Logger
 
@@ -53,6 +52,7 @@ func TestWrite(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer os.Remove(tmpfile.Name())
 
 	l.Log(ERROR, "error")
 	l.Log(WARN, "warn")
