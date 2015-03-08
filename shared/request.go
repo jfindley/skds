@@ -68,7 +68,7 @@ func (s *Session) Get(url string) (resp []Message, err error) {
 		return
 	}
 
-	if r.StatusCode != 200 {
+	if r.StatusCode > 299 || r.StatusCode < 200 {
 		return resp, fmt.Errorf("%s %d %s\n", "Recieved", r.StatusCode, "response from server")
 	}
 
@@ -99,7 +99,7 @@ func (s *Session) Post(url string, msg Message) (resp []Message, err error) {
 		return
 	}
 
-	if r.StatusCode != 200 {
+	if r.StatusCode > 299 || r.StatusCode < 200 {
 		return resp, fmt.Errorf("%s %d %s\n", "Recieved", r.StatusCode, "response from server")
 	}
 
@@ -133,7 +133,7 @@ func (s *Session) Login(cfg *Config) (err error) {
 		return
 	}
 
-	if r.StatusCode != 200 {
+	if r.StatusCode > 299 || r.StatusCode < 200 {
 		return fmt.Errorf("%s %d %s\n", "Recieved", r.StatusCode, "response from server")
 	}
 	s.sessionID, err = strconv.ParseInt(r.Header.Get(HdrSession), 10, 64)
