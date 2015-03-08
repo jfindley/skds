@@ -150,6 +150,11 @@ func customDialer(network, addr string, cfg *Config) (conn net.Conn, err error) 
 }
 
 func checkSig(cfg *Config, sig []byte) (err error) {
+	// Disable signature checking.  This is for testing ONLY, and should
+	// never be done in production.
+	if cfg.Startup.Crypto.ServerCert == "" {
+		return nil
+	}
 	if cfg.Runtime.ServerCert == nil {
 
 		if _, err = os.Stat(cfg.Startup.Crypto.ServerCert); os.IsNotExist(err) {
