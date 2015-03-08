@@ -41,7 +41,7 @@ func (l *Logger) Log(level LogLevel, values ...interface{}) {
 	if level <= l.level {
 		_, err := fmt.Fprintln(l.fh, values...)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Unable to write to logfile")
+			fmt.Fprintln(os.Stderr, "Unable to write to logfile:", err)
 		}
 	}
 	return
