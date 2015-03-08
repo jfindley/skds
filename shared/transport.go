@@ -12,9 +12,11 @@ import (
 )
 
 // As we only need to interoperate with ourself, there's no reason to
-// support anything other than a single cipher.
+// support anything other than a single cipher.  Unfortunately, httptest
+// does not yet support ECDHE ciphers, so we have to include a second
+// for testing purposes.
 
-var ciphers = []uint16{tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256}
+var ciphers = []uint16{tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256, tls.TLS_RSA_WITH_AES_128_CBC_SHA}
 
 // Timeout values in seconds.  We generally favour commands completing
 // over commands timing out, so these are generally pretty long.  This
@@ -139,6 +141,10 @@ func customDialer(network, addr string, cfg *Config) (conn net.Conn, err error) 
 	// than the entire cert here, but using the entire cert makes testing
 	// much easier, and the space cost is pretty minimal.
 	err = checkSig(cfg, connState.PeerCertificates[0].Raw)
+	if err != nil {
+		err = errors.New("Error checking server signature: " + err.Error())
+		return
+	}
 
 	return
 }

@@ -1,7 +1,6 @@
 package shared
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"net/http"
@@ -42,8 +41,6 @@ func TestNew(t *testing.T) {
 
 func TestStart(t *testing.T) {
 	cfg = new(Config)
-	// Set this back to what it should be
-	ciphers = []uint16{tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256}
 
 	cfg.Runtime.CAKey = new(crypto.TLSKey)
 	cfg.Runtime.Key = new(crypto.TLSKey)
@@ -98,8 +95,6 @@ func TestStart(t *testing.T) {
 
 func TestCustomDialer(t *testing.T) {
 	cfg = new(Config)
-	// httptest doesn't appear to support ECDHE cipher suites.
-	ciphers = []uint16{tls.TLS_RSA_WITH_AES_128_CBC_SHA}
 
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
