@@ -69,7 +69,7 @@ func main() {
 	flag.Parse()
 
 	cfg := new(shared.Config)
-	cfg.New()
+	cfg.NewServer()
 
 	err := shared.Read(cfg, cfgFile)
 	if err != nil {

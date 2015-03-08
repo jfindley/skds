@@ -78,40 +78,53 @@ type StartupCrypto struct {
 	ServerCert string
 }
 
+// Encode encodes the Startup part of a config tree in TOML format.
 func (c *Config) Encode() ([]byte, error) {
 	buf := new(bytes.Buffer)
 	err := toml.NewEncoder(buf).Encode(&c.Startup)
 	return buf.Bytes(), err
 }
 
+// Decode reads TOML data into the startup part of a config tree.
 func (c *Config) Decode(data []byte) error {
 	_, err := toml.Decode(string(data), &c.Startup)
 	return err
 }
 
-func (c *Config) New() {
+// NewServer allocates all objects used by the server
+func (c *Config) NewServer() {
 	c.Runtime.Key = new(crypto.TLSKey)
 	c.Runtime.CAKey = new(crypto.TLSKey)
 
 	c.Runtime.Cert = new(crypto.TLSCert)
 	c.Runtime.CACert = new(crypto.TLSCert)
 	c.Runtime.CA = new(crypto.CertPool)
+}
 
+// NewClient allocations all objects used by the client.
+func (c *Config) NewClient() {
+	c.Runtime.CA = new(crypto.CertPool)
 	c.Runtime.Keypair = new(crypto.Key)
 }
 
+// We wrap the log functions here to provide a short calling method.
+
+// StartLogging is a wrapper around log.Start()
 func (c *Config) StartLogging() error {
 	return c.logger.Start(c.Startup.LogLevel, c.Startup.LogFile)
 }
 
+// StopLogging is a wrapper around log.Stop()
 func (c *Config) StopLogging() error {
 	return c.logger.Stop()
 }
 
+// Log is a wrapper around log.Log()
 func (c *Config) Log(level log.LogLevel, values ...interface{}) {
 	c.logger.Log(level, values...)
 }
 
+// Fatal is a wrapper around log.Fatal()
 func (c *Config) Fatal(values ...interface{}) {
 	c.logger.Fatal(values...)
 }
