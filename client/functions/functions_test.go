@@ -59,3 +59,118 @@ func TestGetCA(t *testing.T) {
 		t.Error("Certificate does not match response.")
 	}
 }
+
+func TestRegister(t *testing.T) {
+	cfg.NewClient()
+	// Skip TLS hostname verification
+	cfg.Runtime.CA = nil
+
+	err := cfg.Runtime.Keypair.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg.Runtime.Password = []byte("test password")
+	cfg.Startup.Hostname = "test client"
+
+	var expected shared.Message
+
+	expected.User.Name = cfg.Startup.Hostname
+	expected.User.Admin = false
+	expected.User.Password = cfg.Runtime.Password
+	expected.User.Key = cfg.Runtime.Keypair.Pub[:]
+
+	ts := testPost(expected, 204)
+	defer ts.Close()
+	cfg.Startup.Address = strings.TrimPrefix(ts.URL, "https://")
+
+	cfg.Session.New(cfg)
+
+	ok := Register(cfg, "/client/register")
+	if !ok {
+		t.Fatal("Failed to register")
+	}
+}
+
+func TestGetSecrets(t *testing.T) {
+	cfg.NewClient()
+
+	// Skip TLS hostname verification
+	cfg.Runtime.CA = nil
+
+	err := cfg.Runtime.Keypair.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	secret := []byte("secret data")
+
+	super := new(crypto.Key)
+	super.Generate()
+
+	master := new(crypto.Key)
+	master.Generate()
+
+	group := new(crypto.Key)
+	group.Generate()
+
+	masterSec, err := crypto.Encrypt(secret, super, master)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	enc, err := master.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	groupSec, err := crypto.Encrypt(enc, super, group)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	grpenc, err := group.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	userKey, err := crypto.Encrypt(grpenc, super, cfg.Runtime.Keypair)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var resp shared.Message
+
+	resp.Key.Secret = masterSec
+	resp.Key.Key = groupSec
+	resp.Key.GroupPriv = userKey
+
+	fh, err := ioutil.TempFile(os.TempDir(), "skds_client")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer os.Remove(fh.Name())
+
+	resp.Key.Path = fh.Name()
+
+	ts := testGet(200, resp)
+	defer ts.Close()
+	cfg.Startup.Address = strings.TrimPrefix(ts.URL, "https://")
+
+	cfg.Session.New(cfg)
+
+	ok := GetSecrets(cfg, "/client/secrets")
+	if !ok {
+		t.Fatal("Failed to get secret")
+	}
+
+	data, err := ioutil.ReadFile(fh.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if bytes.Compare(data, []byte("secret data")) != 0 {
+		t.Fatal("Decrypted secret does not match")
+	}
+}

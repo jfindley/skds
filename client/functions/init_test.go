@@ -6,7 +6,6 @@ import (
 	"net/http/httptest"
 	"reflect"
 
-	"github.com/jfindley/skds/log"
 	"github.com/jfindley/skds/shared"
 )
 
@@ -14,10 +13,6 @@ var cfg *shared.Config
 
 func init() {
 	cfg = new(shared.Config)
-
-	cfg.Startup.LogLevel = log.WARN
-	cfg.Startup.LogFile = ""
-	cfg.StartLogging()
 }
 
 func testPost(expected shared.Message, code int, responses ...shared.Message) (ts *httptest.Server) {
@@ -29,6 +24,7 @@ func testPost(expected shared.Message, code int, responses ...shared.Message) (t
 		}
 
 		if reflect.DeepEqual(req[0], expected) {
+
 			var body []byte
 
 			for _, msg := range responses {
@@ -42,7 +38,14 @@ func testPost(expected shared.Message, code int, responses ...shared.Message) (t
 
 			w.WriteHeader(code)
 			w.Write(body)
+
+		} else {
+
+			w.WriteHeader(400)
+			w.Write(nil)
+
 		}
+
 	}))
 	return
 }
