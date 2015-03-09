@@ -43,6 +43,28 @@ func TestKey(t *testing.T) {
 
 }
 
+func TestKeyZero(t *testing.T) {
+	key := new(Key)
+
+	err := key.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	keyCopy := key
+
+	key.Zero()
+
+	if keyCopy.Pub != nil {
+		t.Error("Public key not zeroed")
+	}
+
+	if keyCopy.Priv != nil {
+		t.Error("Private key not zeroed")
+	}
+
+}
+
 func TestEncryption(t *testing.T) {
 	payload := []byte("Test payload data")
 	// Payload will be zeroed, copy it

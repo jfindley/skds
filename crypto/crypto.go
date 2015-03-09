@@ -76,6 +76,18 @@ func (k *Key) Decode(data []byte) (err error) {
 	return
 }
 
+// Zero wipes a key and dereferences the pointers.
+func (k *Key) Zero() {
+	for i := range k.Priv {
+		k.Priv[i] ^= k.Priv[i]
+	}
+	for i := range k.Pub {
+		k.Pub[i] ^= k.Pub[i]
+	}
+	k.Pub = nil
+	k.Priv = nil
+}
+
 // Zero wipes binary data in memory.
 func Zero(in Binary) {
 	if in == nil {
