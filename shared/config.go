@@ -75,6 +75,7 @@ type StartupCrypto struct {
 	CAKey      string
 	KeyPair    string
 	ServerCert string
+	Password   string // Client only.
 }
 
 // Encode encodes the Startup part of a config tree in TOML format.

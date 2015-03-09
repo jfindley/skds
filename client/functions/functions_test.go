@@ -12,6 +12,8 @@ import (
 )
 
 func TestGetCA(t *testing.T) {
+	cfg.NewClient()
+
 	key := new(crypto.TLSKey)
 	cert := new(crypto.TLSCert)
 

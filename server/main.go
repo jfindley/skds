@@ -19,7 +19,7 @@ import (
 var cfgFile string
 
 func init() {
-	flag.StringVar(&cfgFile, "f", "/etc/skds/skds.conf", "Config file location.")
+	flag.StringVar(&cfgFile, "f", "/etc/skds/server.conf", "Config file location.")
 }
 
 func readFiles(cfg *shared.Config) (install bool, err error) {

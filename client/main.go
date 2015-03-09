@@ -1,62 +1,83 @@
 package main
 
 import (
-	"errors"
 	"flag"
+	"fmt"
 	"os"
 
-	"github.com/jfindley/skds/config"
-	"github.com/jfindley/skds/transport"
+	"github.com/jfindley/skds/client/functions"
+	"github.com/jfindley/skds/log"
+	"github.com/jfindley/skds/shared"
 )
 
-func loadConfig(cfg *config.Config) (err error) {
+var cfgFile string
 
-	// Ignore extra arguments
-	initCfg, install, _ := config.ReadArgs()
-	*cfg = initCfg
+func init() {
+	flag.StringVar(&cfgFile, "f", "/etc/skds/client.conf", "Config file location.")
+}
 
-	if install {
-		err = Setup(cfg)
-		if err != nil {
-			cfg.Fatal(err)
-		}
-		cfg.Log(2, "Setup complete")
-		os.Exit(0)
-	} else {
-		_, err = os.Stat(cfg.File)
-		if err != nil {
-			err = errors.New("Cannot read config file")
-			return
-		}
-		err = cfg.Startup.Read(cfg.File)
-		if err != nil {
-			err = errors.New("Cannot parse config file")
-			return
-		}
+func readFiles(cfg *shared.Config) (install bool, err error) {
 
-		flag.Visit(config.SetOverrides(cfg))
-
-		// There's no situation where we don't need the private key,
-		// so we load it at startup to simplify the Get function.
-		err = cfg.ReadFiles(config.CACert(), config.PublicKey(),
-			config.PrivateKey(), config.Key(), config.Cert())
-		if err != nil {
-			return
-		}
-		cfg.Runtime.Client, err = transport.ClientInit(cfg)
-
+	err = shared.Read(cfg.Runtime.CA, cfg.Startup.Crypto.CACert)
+	if os.IsNotExist(err) {
+		install = true
+	} else if err != nil {
+		return
 	}
-	return
+
+	err = shared.Read(cfg.Runtime.Keypair, cfg.Startup.Crypto.KeyPair)
+	if os.IsNotExist(err) {
+		if !install {
+			return false, fmt.Errorf("Missing file: %s", cfg.Startup.Crypto.KeyPair)
+		}
+	} else if err != nil {
+		return
+	}
+
+	return install, nil
 }
 
 func main() {
-	cfg := new(config.Config)
-	err := loadConfig(cfg)
+	flag.Parse()
+
+	cfg := new(shared.Config)
+	cfg.NewClient()
+
+	err := shared.Read(cfg, cfgFile)
+	if err != nil {
+		fmt.Println("Cannot read config file:", err)
+		os.Exit(2)
+	}
+
+	err = cfg.StartLogging()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	cfg.Log(log.DEBUG, "Reading keys and certificates from disk")
+	install, err := readFiles(cfg)
 	if err != nil {
 		cfg.Fatal(err)
 	}
-	err = Get(cfg)
-	if err != nil {
-		cfg.Log(2, err)
+
+	if cfg.Startup.Crypto.ServerCert == "" {
+		cfg.Log(log.WARN, "Server certificate pinning disabled.  This is strongly discouraged.\n",
+			"Please consider configuring a ServerCert location.")
+	}
+
+	cfg.Session.New(cfg)
+
+	if install {
+		cfg.Log(log.INFO, "Performing first-run install")
+		err = setup(cfg)
+		if err != nil {
+			cfg.Fatal(err)
+		}
+	}
+
+	ok := functions.GetSecrets(cfg, "/client/secrets")
+	if !ok {
+		os.Exit(1)
 	}
 }

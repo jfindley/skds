@@ -71,5 +71,7 @@ func setup(cfg *shared.Config) (err error) {
 	if err != nil {
 		return
 	}
+
+	cfg.Log(log.INFO, "First-run install complete")
 	return
 }

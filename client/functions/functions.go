@@ -11,6 +11,8 @@ import (
 )
 
 func GetCA(cfg *shared.Config, url string) bool {
+	// We wipe the CA here to skip TLS verification.
+	cfg.Runtime.CA = nil
 	resp, err := cfg.Session.Get(url)
 
 	if err != nil {
