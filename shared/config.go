@@ -73,8 +73,7 @@ type StartupCrypto struct {
 	Key        string
 	CACert     string
 	CAKey      string
-	PublicKey  string
-	PrivateKey string
+	KeyPair    string
 	ServerCert string
 }
 

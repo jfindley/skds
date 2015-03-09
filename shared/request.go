@@ -197,7 +197,8 @@ func ReadResp(r io.Reader) (resp []Message, err error) {
 	dec := json.NewDecoder(r)
 	for {
 		var m Message
-		if err = dec.Decode(&m); err == io.EOF {
+		err = dec.Decode(&m)
+		if err == io.EOF {
 			return resp, nil
 		} else if err != nil {
 			return
