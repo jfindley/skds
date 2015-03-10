@@ -233,29 +233,6 @@ func Connect(cfg shared.DBSettings) (db gorm.DB, err error) {
 	return
 }
 
-// InitDB completes wipes and re-creates the main and test DBs.
-// This closes the DB handler, and it must be re-opened if needed.
-func InitDB(db gorm.DB) error {
-	_, err := db.DB().Exec("drop database if exists skds")
-	if err != nil {
-		return err
-	}
-	_, err = db.DB().Exec("drop database if exists skds_test")
-	if err != nil {
-		return err
-	}
-
-	_, err = db.DB().Exec("create database skds")
-	if err != nil {
-		return err
-	}
-	_, err = db.DB().Exec("create database skds_test")
-	if err != nil {
-		return err
-	}
-	return db.Close()
-}
-
 func InitTables(db gorm.DB) error {
 	for _, table := range tableList {
 		q := db.DropTableIfExists(table)

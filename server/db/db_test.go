@@ -30,28 +30,12 @@ func TestConnect(t *testing.T) {
 	}
 }
 
-func TestInitDB(t *testing.T) {
-	err = InitDB(cfg.DB)
-	if err != nil {
-		t.Error(err)
-	}
-	cfg.DB, err = Connect(cfg.Startup.DB)
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestCreateDefaults(t *testing.T) {
 	err = InitTables(cfg.DB)
 	if err != nil {
 		t.Error(err)
 	}
 
-	for name, table := range tableList {
-		if !cfg.DB.HasTable(table) {
-			t.Error("Table missing:", name)
-		}
-	}
-}
-
-func TestCreateDefaults(t *testing.T) {
 	err = CreateDefaults(cfg.DB)
 	if err != nil {
 		t.Error(err)
