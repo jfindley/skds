@@ -11,7 +11,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/base32"
+	"encoding/base64"
 	"errors"
 	"io"
 	"math/big"
@@ -105,12 +105,12 @@ func NewMAC(key []byte, url string, msg []byte) string {
 	m := hmac.New(sha256.New, key)
 
 	m.Write(macData(url, msg))
-	return base32.StdEncoding.EncodeToString(m.Sum(nil))
+	return base64.StdEncoding.EncodeToString(m.Sum(nil))
 }
 
 // VerifyMAC verifies a MAC.
 func VerifyMAC(key []byte, msgMac string, url string, msg []byte) (ok bool) {
-	msgMacDec, err := base32.StdEncoding.DecodeString(msgMac)
+	msgMacDec, err := base64.StdEncoding.DecodeString(msgMac)
 	if err != nil {
 		return false
 	}

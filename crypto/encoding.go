@@ -7,7 +7,6 @@ package crypto
 
 import (
 	"crypto/subtle"
-	"encoding/base32"
 	"encoding/base64"
 )
 
@@ -57,12 +56,12 @@ func (b *Binary) Decode(data []byte) error {
 // EncodeString encodes binary data directly into a string.
 // Useful if sending the data in headers.
 func (b *Binary) EncodeString() (string, error) {
-	return base32.StdEncoding.EncodeToString(*b), nil
+	return base64.StdEncoding.EncodeToString(*b), nil
 }
 
 // DecodeString decodes binary data from a base64 string.
 func (b *Binary) DecodeString(data string) error {
 	var err error
-	*b, err = base32.StdEncoding.DecodeString(data)
+	*b, err = base64.StdEncoding.DecodeString(data)
 	return err
 }
