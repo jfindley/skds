@@ -1,6 +1,7 @@
 #!/bin/bash
 
 dirList=(
+    "./client/functions"
     "./crypto"
     "./server/auth"
     "./server/db"
@@ -35,3 +36,4 @@ else
     echo -e "--- ONE OR MORE TESTS FAILED ---\n"
     exit 2
 fi
+
