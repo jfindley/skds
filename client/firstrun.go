@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"io"
+	"os"
 
 	"github.com/jfindley/skds/client/functions"
 	"github.com/jfindley/skds/log"
@@ -11,6 +12,15 @@ import (
 )
 
 func setup(cfg *shared.Config) (err error) {
+
+	var success bool
+
+	// Remove all created files on exit if something goes wrong.
+	defer func() {
+		if !success {
+			cleanup(cfg)
+		}
+	}()
 
 	// We don't use the standard crypto.NewPassword function, because
 	// there's no reason for this to be human-readable.
@@ -33,6 +43,11 @@ func setup(cfg *shared.Config) (err error) {
 		return
 	}
 
+	err = shared.Write(cfg.Runtime.Keypair, cfg.Startup.Crypto.KeyPair)
+	if err != nil {
+		return
+	}
+
 	cfg.Log(log.DEBUG, "Fetching server CA Cert")
 	ok := functions.GetCA(cfg, "/ca")
 	if !ok {
@@ -46,5 +61,26 @@ func setup(cfg *shared.Config) (err error) {
 	}
 
 	cfg.Log(log.INFO, "First-run setup complete")
+	success = true
 	return
+}
+
+func cleanup(cfg *shared.Config) {
+	cfg.Log(log.WARN, "Setup failed, performing cleanup")
+
+	err := os.Remove(cfg.Startup.Crypto.Password)
+	// We just log if an error occurs - there is nothing more we can do.
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+	}
+
+	err = os.Remove(cfg.Startup.Crypto.KeyPair)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+	}
+
+	err = os.Remove(cfg.Startup.Crypto.CACert)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+	}
 }

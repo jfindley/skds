@@ -34,6 +34,15 @@ func readFiles(cfg *shared.Config) (install bool, err error) {
 		return
 	}
 
+	err = shared.Read(&cfg.Runtime.Password, cfg.Startup.Crypto.Password)
+	if os.IsNotExist(err) {
+		if !install {
+			return false, fmt.Errorf("Missing file: %s", cfg.Startup.Crypto.KeyPair)
+		}
+	} else if err != nil {
+		return
+	}
+
 	return install, nil
 }
 
@@ -76,8 +85,18 @@ func main() {
 		}
 	}
 
+	err = cfg.Session.Login(cfg)
+	if err != nil {
+		cfg.Fatal(err)
+	}
+
 	ok := functions.GetSecrets(cfg, "/client/secrets")
 	if !ok {
 		os.Exit(1)
+	}
+
+	err = cfg.Session.Logout(cfg)
+	if err != nil {
+		cfg.Fatal(err)
 	}
 }
