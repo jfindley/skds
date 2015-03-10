@@ -241,6 +241,52 @@ func TestValidate(t *testing.T) {
 	}
 }
 
+func TestDelete(t *testing.T) {
+	var err error
+	sessionExpiry = 30
+
+	p := new(SessionPool)
+	sess := new(SessionInfo)
+
+	id, err := p.Add(sess)
+	if err != nil {
+		t.Error(err)
+	}
+
+	req := new(http.Request)
+
+	req.RequestURI = "/test/request"
+
+	mac := crypto.NewMAC(p.Pool[id].SessionKey, "/test/request", nil)
+
+	req.Header = http.Header(make(map[string][]string))
+	req.Header.Add(shared.HdrMAC, mac)
+	req.Header.Add(shared.HdrSession, strconv.FormatInt(id, 10))
+
+	ok, sid, _ := p.Validate(req)
+	if !ok {
+		t.Fatal("Validation failed")
+	}
+
+	req = new(http.Request)
+
+	req.RequestURI = "/test/request"
+
+	mac = crypto.NewMAC(p.Pool[id].SessionKey, "/test/request", nil)
+
+	req.Header = http.Header(make(map[string][]string))
+	req.Header.Add(shared.HdrMAC, mac)
+	req.Header.Add(shared.HdrSession, strconv.FormatInt(id, 10))
+
+	p.Delete(sid)
+
+	ok, sid, _ = p.Validate(req)
+	if ok {
+		t.Fatal("Validation passed")
+	}
+
+}
+
 func TestPrune(t *testing.T) {
 	var err error
 	pruneInterval = 1 * time.Millisecond

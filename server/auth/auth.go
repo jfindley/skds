@@ -4,7 +4,6 @@ package auth
 
 import (
 	"crypto/rand"
-	"fmt"
 	"github.com/jinzhu/gorm"
 	"io"
 	"io/ioutil"
@@ -133,20 +132,40 @@ type SessionPool struct {
 
 // Add adds a session to the pool
 func (s *SessionPool) Add(sess *SessionInfo) (id int64, err error) {
-	id, err = s.create(sess)
-	if err != nil {
-		return
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// We do this in a loop to guarentee uniqueness
+	for {
+		id, err = crypto.RandomInt()
+		if err != nil {
+			return
+		}
+		if _, ok := s.Pool[id]; !ok {
+			if s.Pool == nil {
+				s.Pool = make(map[int64]*SessionInfo)
+			}
+			s.Pool[id] = sess
+			break
+		}
 	}
+	s.Pool[id].SessionTime = time.Now()
 	s.Pool[id].NextKey()
 	return
 }
 
-// Get retrieves a session to the pool
+// Get retrieves a session from the pool
 func (s *SessionPool) Get(id int64) (sess *SessionInfo) {
 	if _, ok := s.Pool[id]; !ok {
 		return
 	}
 	return s.Pool[id]
+}
+
+// Delete removes a session from the pool
+func (s *SessionPool) Delete(id int64) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.Pool, id)
 }
 
 // Validate checks that a message belongs to a session, and returns the session ID and request body.
@@ -158,9 +177,9 @@ func (s *SessionPool) Validate(r *http.Request) (ok bool, id int64, body []byte)
 	if mac == "" || session == "" {
 		return
 	}
+
 	id, err := strconv.ParseInt(session, 10, 64)
 	if err != nil {
-		println(err.Error())
 		return
 	}
 
@@ -185,8 +204,6 @@ func (s *SessionPool) Validate(r *http.Request) (ok bool, id int64, body []byte)
 
 	ok = crypto.VerifyMAC(s.Pool[id].SessionKey, mac, r.RequestURI, body)
 	if !ok {
-		fmt.Println(r.Body)
-		fmt.Println("bad mac", id, mac, r.RequestURI, body)
 		return
 	}
 
@@ -208,27 +225,6 @@ func (s *SessionPool) Pruner() {
 		}
 		s.mu.Unlock()
 	}
-}
-
-func (s *SessionPool) create(a *SessionInfo) (id int64, err error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	// We do this in a loop to guarentee uniqueness
-	for {
-		id, err = crypto.RandomInt()
-		if err != nil {
-			return
-		}
-		if _, ok := s.Pool[id]; !ok {
-			if s.Pool == nil {
-				s.Pool = make(map[int64]*SessionInfo)
-			}
-			s.Pool[id] = a
-			break
-		}
-	}
-	s.Pool[id].SessionTime = time.Now()
-	return
 }
 
 func (s *SessionPool) expired(id int64) bool {
