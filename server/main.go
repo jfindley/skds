@@ -1,3 +1,4 @@
+// The server component
 package main
 
 import (
@@ -123,8 +124,12 @@ func main() {
 
 	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
 
-	server.Mux.HandleFunc("/auth", func(w http.ResponseWriter, r *http.Request) {
-		authentication(cfg, pool, w, r)
+	server.Mux.HandleFunc("/login", func(w http.ResponseWriter, r *http.Request) {
+		login(cfg, pool, w, r)
+	})
+
+	server.Mux.HandleFunc("/logout", func(w http.ResponseWriter, r *http.Request) {
+		logout(cfg, pool, w, r)
 	})
 
 	for url, fn := range dictionary.Dictionary {

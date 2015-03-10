@@ -1,3 +1,4 @@
+// The server component
 package main
 
 import (
@@ -11,8 +12,8 @@ import (
 	"github.com/jfindley/skds/shared"
 )
 
-// authentication handles session creation.  Errors in message handling are for safety assumed to be bad requests.
-func authentication(cfg *shared.Config, pool *auth.SessionPool, w http.ResponseWriter, r *http.Request) {
+// login handles session creation.  Errors in message handling are for safety assumed to be bad requests.
+func login(cfg *shared.Config, pool *auth.SessionPool, w http.ResponseWriter, r *http.Request) {
 	var req shared.Request
 
 	// As this is a new session, we don't need to do any validation, just parse the request directly.
@@ -60,7 +61,25 @@ func authentication(cfg *shared.Config, pool *auth.SessionPool, w http.ResponseW
 	req.Session = session
 
 	req.SetSessionID(id)
+
+	cfg.Log(log.DEBUG, pool.Pool[id].Name, "logged in")
+
 	req.Reply(200)
+}
+
+func logout(cfg *shared.Config, pool *auth.SessionPool, w http.ResponseWriter, r *http.Request) {
+	ok, id, _ := pool.Validate(r)
+	if !ok {
+		http.Error(w, "Unauthorized", 401)
+		return
+	}
+
+	cfg.Log(log.DEBUG, pool.Pool[id].Name, "logged out")
+
+	pool.Delete(id)
+
+	w.WriteHeader(204)
+	w.Write(nil)
 }
 
 func api(cfg *shared.Config, pool *auth.SessionPool, job dictionary.APIFunc, w http.ResponseWriter, r *http.Request) {
@@ -93,9 +112,13 @@ func api(cfg *shared.Config, pool *auth.SessionPool, job dictionary.APIFunc, w h
 		ok, id, body := pool.Validate(r)
 		if !ok {
 			http.Error(w, "Unauthorized", 401)
+			return
 		}
 
+		cfg.Log(log.DEBUG, pool.Pool[id].Name, "requested", r.RequestURI)
+
 		if !req.Parse(body, w) {
+			http.Error(w, "Unable to parse request", 400)
 			return
 		}
 
@@ -108,6 +131,8 @@ func api(cfg *shared.Config, pool *auth.SessionPool, job dictionary.APIFunc, w h
 			req.Reply(403)
 			return
 		}
+
+		req.Session = pool.Pool[id]
 
 		job.Serverfn(cfg, req)
 

@@ -1,12 +1,23 @@
+// The server component
 package main
 
 import (
+	"os"
+
 	"github.com/jfindley/skds/log"
 	"github.com/jfindley/skds/server/db"
 	"github.com/jfindley/skds/shared"
 )
 
 func setup(cfg *shared.Config) (err error) {
+	var success bool
+
+	// Remove all created files on exit if something goes wrong.
+	defer func() {
+		if !success {
+			cleanup(cfg)
+		}
+	}()
 
 	cfg.Log(log.DEBUG, "Creating CA key")
 	err = cfg.Runtime.CAKey.Generate()
@@ -46,7 +57,7 @@ func setup(cfg *shared.Config) (err error) {
 
 	cfg.Log(log.DEBUG, "Creating server cert")
 	err = cfg.Runtime.Cert.Generate(
-		cfg.Startup.Hostname,
+		cfg.Startup.NodeName,
 		false,
 		5,
 		cfg.Runtime.Key.Public(),
@@ -74,4 +85,29 @@ func setup(cfg *shared.Config) (err error) {
 
 	cfg.Log(log.INFO, "First-run install complete")
 	return
+}
+
+func cleanup(cfg *shared.Config) {
+	cfg.Log(log.WARN, "Setup failed, performing cleanup")
+
+	err := os.Remove(cfg.Startup.Crypto.CAKey)
+	// We just log if an error occurs - there is nothing more we can do.
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+	}
+
+	err = os.Remove(cfg.Startup.Crypto.CACert)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+	}
+
+	err = os.Remove(cfg.Startup.Crypto.Key)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+	}
+
+	err = os.Remove(cfg.Startup.Crypto.Cert)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+	}
 }
