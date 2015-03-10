@@ -1,3 +1,6 @@
+/*
+Functions specifies a list of client functions, split out into different files based on API tree.
+*/
 package functions
 
 import (
@@ -48,7 +51,7 @@ func GetCA(cfg *shared.Config, url string) bool {
 func Register(cfg *shared.Config, url string) bool {
 	var msg shared.Message
 
-	msg.User.Name = cfg.Startup.Hostname
+	msg.User.Name = cfg.Startup.NodeName
 	msg.User.Admin = false
 	msg.User.Password = cfg.Runtime.Password
 	msg.User.Key = cfg.Runtime.Keypair.Pub[:]

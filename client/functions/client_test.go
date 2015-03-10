@@ -73,11 +73,11 @@ func TestRegister(t *testing.T) {
 	}
 
 	cfg.Runtime.Password = []byte("test password")
-	cfg.Startup.Hostname = "test client"
+	cfg.Startup.NodeName = "test client"
 
 	var expected shared.Message
 
-	expected.User.Name = cfg.Startup.Hostname
+	expected.User.Name = cfg.Startup.NodeName
 	expected.User.Admin = false
 	expected.User.Password = cfg.Runtime.Password
 	expected.User.Key = cfg.Runtime.Keypair.Pub[:]
