@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -27,6 +26,15 @@ const (
 	// Session key header
 	HdrKey = "X-AUTH-KEY"
 )
+
+var errorCodes = map[int]string{
+	400: "Bad request",
+	401: "Authentication failed",
+	403: "Forbidden",
+	404: "Not found",
+	409: "Conflict",
+	500: "Internal server error",
+}
 
 type Session struct {
 	Password   []byte
@@ -69,7 +77,7 @@ func (s *Session) Get(url string) (resp []Message, err error) {
 	}
 
 	if r.StatusCode > 299 || r.StatusCode < 200 {
-		return resp, fmt.Errorf("%s %d %s\n", "Recieved", r.StatusCode, "response from server")
+		return resp, errors.New(errorCodes[r.StatusCode])
 	}
 
 	err = s.nextKey(r)
@@ -100,7 +108,7 @@ func (s *Session) Post(url string, msg Message) (resp []Message, err error) {
 	}
 
 	if r.StatusCode > 299 || r.StatusCode < 200 {
-		return resp, fmt.Errorf("%s %d %s\n", "Recieved", r.StatusCode, "response from server")
+		return resp, errors.New(errorCodes[r.StatusCode])
 	}
 
 	err = s.nextKey(r)
@@ -113,8 +121,8 @@ func (s *Session) Post(url string, msg Message) (resp []Message, err error) {
 
 func (s *Session) Login(cfg *Config) (err error) {
 	msg := new(Message)
-	msg.Auth.Name = "test login"
-	msg.Auth.Password = []byte("test password")
+	msg.Auth.Name = cfg.Startup.NodeName
+	msg.Auth.Password = cfg.Runtime.Password
 
 	data, err := json.Marshal(msg)
 	if err != nil {
@@ -134,7 +142,7 @@ func (s *Session) Login(cfg *Config) (err error) {
 	}
 
 	if r.StatusCode > 299 || r.StatusCode < 200 {
-		return fmt.Errorf("%s %d %s\n", "Recieved", r.StatusCode, "response from server")
+		return errors.New(errorCodes[r.StatusCode])
 	}
 	s.sessionID, err = strconv.ParseInt(r.Header.Get(HdrSession), 10, 64)
 	if err != nil {
@@ -147,6 +155,26 @@ func (s *Session) Login(cfg *Config) (err error) {
 	if s.sessionKey == nil {
 		return errors.New("No session key in response")
 	}
+	return
+}
+
+func (s *Session) Logout(cfg *Config) (err error) {
+	request, err := http.NewRequest("GET", s.fmtURL("/logout"), nil)
+	if err != nil {
+		return
+	}
+
+	s.setHeaders(request, nil)
+
+	r, err := s.client.Do(request)
+	if err != nil {
+		return
+	}
+
+	if r.StatusCode > 299 || r.StatusCode < 200 {
+		return errors.New(errorCodes[r.StatusCode])
+	}
+
 	return
 }
 

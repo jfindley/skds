@@ -50,9 +50,8 @@ type Runtime struct {
 // These can be written to the config file safely
 type Startup struct {
 	Dir      string // Directory where certs etc are stored
-	Hostname string // Hostname
+	NodeName string // Should be set to hostname for servers.
 	Address  string
-	User     string
 	LogFile  string
 	LogLevel log.LogLevel
 	Crypto   StartupCrypto `toml:"files"`

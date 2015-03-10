@@ -138,14 +138,14 @@ func TestPost(t *testing.T) {
 func TestLogin(t *testing.T) {
 	cfg = new(Config)
 
-	cfg.Startup.User = "test login"
+	cfg.Startup.NodeName = "test login"
 	cfg.Runtime.Password = []byte("test password")
 
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		expected := new(Message)
 		recieved := new(Message)
 
-		expected.Auth.Name = cfg.Startup.User
+		expected.Auth.Name = cfg.Startup.NodeName
 		expected.Auth.Password = cfg.Runtime.Password
 
 		body, err := ioutil.ReadAll(r.Body)
