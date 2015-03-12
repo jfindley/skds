@@ -19,6 +19,11 @@ func setup(cfg *shared.Config) (err error) {
 		}
 	}()
 
+	err = os.Mkdir(cfg.Startup.Dir, os.FileMode(0700))
+	if err != nil && !os.IsExist(err) {
+		return
+	}
+
 	cfg.Log(log.DEBUG, "Creating CA key")
 	err = cfg.Runtime.CAKey.Generate()
 	if err != nil {
@@ -90,24 +95,25 @@ func setup(cfg *shared.Config) (err error) {
 func cleanup(cfg *shared.Config) {
 	cfg.Log(log.WARN, "Setup failed, performing cleanup")
 
-	err := os.Remove(cfg.Startup.Crypto.CAKey)
 	// We just log if an error occurs - there is nothing more we can do.
-	if err != nil {
+
+	err := os.Remove(cfg.Startup.Crypto.CAKey)
+	if err != nil && !os.IsNotExist(err) {
 		cfg.Log(log.ERROR, err)
 	}
 
 	err = os.Remove(cfg.Startup.Crypto.CACert)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		cfg.Log(log.ERROR, err)
 	}
 
 	err = os.Remove(cfg.Startup.Crypto.Key)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		cfg.Log(log.ERROR, err)
 	}
 
 	err = os.Remove(cfg.Startup.Crypto.Cert)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		cfg.Log(log.ERROR, err)
 	}
 }
