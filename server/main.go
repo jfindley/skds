@@ -18,9 +18,11 @@ import (
 )
 
 var cfgFile string
+var version bool
 
 func init() {
 	flag.StringVar(&cfgFile, "f", "/etc/skds/server.conf", "Config file location.")
+	flag.BoolVar(&version, "V", false, "Show version")
 }
 
 func readFiles(cfg *shared.Config) (install bool, err error) {
@@ -68,6 +70,11 @@ func main() {
 	runtime.GOMAXPROCS(runtime.NumCPU())
 
 	flag.Parse()
+
+	if version {
+		fmt.Println(shared.Version)
+		os.Exit(0)
+	}
 
 	cfg := new(shared.Config)
 	cfg.NewServer()
