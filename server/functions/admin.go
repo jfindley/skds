@@ -159,11 +159,18 @@ User.Name => name
 User.Admin => admin/client user
 */
 func UserDel(cfg *shared.Config, r shared.Request) {
-	q := cfg.DB.Where("Name = ? and Admin = ?", r.Req.User.Name, r.Req.User.Admin).Delete(&db.Users{})
+	user := new(db.Users)
+	q := cfg.DB.Where("Name = ? and Admin = ?", r.Req.User.Name, r.Req.User.Admin).First(user)
 	if q.RecordNotFound() {
 		r.Reply(404, shared.RespMessage("No such user"))
 		return
 	} else if q.Error != nil {
+		cfg.Log(log.ERROR, q.Error)
+		r.Reply(500)
+		return
+	}
+	q = cfg.DB.Delete(user)
+	if q.Error != nil {
 		cfg.Log(log.ERROR, q.Error)
 		r.Reply(500)
 		return

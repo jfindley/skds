@@ -89,6 +89,49 @@ func TestUserPubKey(t *testing.T) {
 	}
 }
 
+func TestUserGroupKey(t *testing.T) {
+	req, resp := respRecorder()
+	req.Session = session
+	var err error
+
+	err = setupDB(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cfg.DB.Close()
+
+	var key crypto.Binary
+	key = []byte("test group key")
+
+	user := new(db.Users)
+
+	cfg.DB.First(user, req.Session.GetUID())
+	user.GroupKey, err = key.Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg.DB.Save(user)
+
+	UserGroupKey(cfg, req)
+	if resp.Code != 200 {
+		t.Error("Bad response code:", resp.Code)
+	}
+
+	msgs, err := shared.ReadResp(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(msgs) != 1 {
+		t.Fatal("Expected 1 results, got", len(msgs))
+	}
+
+	if !key.Compare(msgs[0].Key.GroupPriv) {
+		t.Error("Key does not match")
+	}
+}
+
 func TestGroupPubKey(t *testing.T) {
 	req, resp := respRecorder()
 	var err error

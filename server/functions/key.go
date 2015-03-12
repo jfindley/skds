@@ -41,7 +41,7 @@ User.Name => user name
 User.Admin => admin/client user
 */
 func UserPubKey(cfg *shared.Config, r shared.Request) {
-	user := new(db.Users)
+	var user db.Users
 	q := cfg.DB.Where("name = ? and admin = ?", r.Req.User.Name, r.Req.User.Admin).First(&user)
 	if q.RecordNotFound() {
 		r.Reply(404, shared.RespMessage("Client does not exist"))
@@ -64,6 +64,33 @@ func UserPubKey(cfg *shared.Config, r shared.Request) {
 	}
 
 	msg.Key.UserKey = key
+	r.Reply(200, msg)
+	return
+}
+
+/*
+No input
+*/
+func UserGroupKey(cfg *shared.Config, r shared.Request) {
+	user := new(db.Users)
+	q := cfg.DB.First(user, r.Session.GetUID())
+	if q.Error != nil {
+		cfg.Log(log.ERROR, q.Error)
+		r.Reply(500)
+		return
+	}
+
+	var key crypto.Binary
+	var msg shared.Message
+
+	err := key.Decode(user.GroupKey)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		r.Reply(500)
+		return
+	}
+
+	msg.Key.GroupPriv = key
 	r.Reply(200, msg)
 	return
 }
