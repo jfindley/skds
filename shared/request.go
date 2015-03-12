@@ -76,13 +76,13 @@ func (s *Session) Get(url string) (resp []Message, err error) {
 		return
 	}
 
-	if r.StatusCode > 299 || r.StatusCode < 200 {
-		return resp, errors.New(errorCodes[r.StatusCode])
-	}
-
 	err = s.nextKey(r)
 	if err != nil {
 		return
+	}
+
+	if r.StatusCode > 299 || r.StatusCode < 200 {
+		return resp, errors.New(errorCodes[r.StatusCode])
 	}
 
 	return ReadResp(r.Body)
@@ -107,13 +107,13 @@ func (s *Session) Post(url string, msg Message) (resp []Message, err error) {
 		return
 	}
 
-	if r.StatusCode > 299 || r.StatusCode < 200 {
-		return resp, errors.New(errorCodes[r.StatusCode])
-	}
-
 	err = s.nextKey(r)
 	if err != nil {
 		return
+	}
+
+	if r.StatusCode > 299 || r.StatusCode < 200 {
+		return resp, errors.New(errorCodes[r.StatusCode])
 	}
 
 	return ReadResp(r.Body)
@@ -159,6 +159,9 @@ func (s *Session) Login(cfg *Config) (err error) {
 }
 
 func (s *Session) Logout(cfg *Config) (err error) {
+	if s.client == nil {
+		return
+	}
 	request, err := http.NewRequest("GET", s.fmtURL("/logout"), nil)
 	if err != nil {
 		return
