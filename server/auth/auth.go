@@ -18,7 +18,7 @@ import (
 
 var (
 	// sessionExpiry is measured in seconds.
-	sessionExpiry = 30
+	sessionExpiry = 1800
 	pruneInterval = 90 * time.Second
 )
 
