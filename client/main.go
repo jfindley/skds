@@ -4,6 +4,8 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/jfindley/skds/client/functions"
 	"github.com/jfindley/skds/log"
@@ -11,9 +13,11 @@ import (
 )
 
 var cfgFile string
+var version bool
 
 func init() {
 	flag.StringVar(&cfgFile, "f", "/etc/skds/client.conf", "Config file location.")
+	flag.BoolVar(&version, "V", false, "Show version")
 }
 
 func readFiles(cfg *shared.Config) (install bool, err error) {
@@ -48,6 +52,11 @@ func readFiles(cfg *shared.Config) (install bool, err error) {
 
 func main() {
 	flag.Parse()
+
+	if version {
+		fmt.Println(shared.Version)
+		os.Exit(0)
+	}
 
 	cfg := new(shared.Config)
 	cfg.NewClient()
@@ -90,7 +99,18 @@ func main() {
 		cfg.Fatal(err)
 	}
 
-	ok := functions.GetSecrets(cfg, "/client/secrets")
+	sigs := make(chan os.Signal, 1)
+
+	go func() {
+		<-sigs
+		cfg.Log(log.INFO, "Aborting")
+		cfg.Session.Logout(cfg)
+		os.Exit(0)
+	}()
+
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+
+	ok := functions.GetSecrets(cfg)
 	if !ok {
 		os.Exit(1)
 	}
