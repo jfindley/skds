@@ -42,6 +42,18 @@ func Password(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 	return true
 }
 
+func SetPubKey(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
+	var msg shared.Message
+	msg.User.Key = cfg.Runtime.Keypair.Pub[:]
+
+	_, err := cfg.Session.Post(url, msg)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+	return true
+}
+
 func AdminNew(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 	name := ctx.String("name")
 
@@ -71,6 +83,62 @@ func AdminNew(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 }
 
 func AdminSuper(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
+	name := ctx.String("name")
+
+	if name == "" {
+		cfg.Log(log.ERROR, "Name is required")
+		return
+	}
+
+	if cfg.Session.GroupKey == nil {
+		cfg.Log(log.ERROR, "No groupkey in session")
+		return
+	}
+
+	superKey, err := crypto.Decrypt(cfg.Session.GroupKey, cfg.Runtime.Keypair)
+	if err != nil {
+		cfg.Log(log.ERROR, "Unable to decrypt super-key")
+		return
+	}
+
+	defer crypto.Zero(superKey)
+
+	var msg shared.Message
+	msg.User.Name = name
+	msg.User.Admin = true
+
+	resp, err := cfg.Session.Post("/key/public/get/user", msg)
+	if err != nil {
+		cfg.Log(log.ERROR, "Error while downloading user's public key:", err)
+		return
+	}
+
+	if len(resp) != 1 {
+		cfg.Log(log.ERROR, "Bad response from server")
+		return
+	}
+
+	pubKey := new(crypto.Key)
+	pubKey.Pub = new([32]byte)
+
+	for i := range resp[0].Key.UserKey {
+		pubKey.Pub[i] = resp[0].Key.UserKey[i]
+	}
+
+	userKey, err := crypto.Encrypt(superKey, cfg.Runtime.Keypair, pubKey)
+	if err != nil {
+		cfg.Log(log.ERROR, "Unable to encrypt super-key for", name)
+		return
+	}
+
+	msg.Key.GroupPriv = userKey
+
+	_, err = cfg.Session.Post(url, msg)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
 	return true
 }
 
@@ -80,6 +148,7 @@ func UserDel(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 
 	if name == "" {
 		cfg.Log(log.ERROR, "Name is required")
+		return
 	}
 
 	var msg shared.Message

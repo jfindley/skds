@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/jfindley/skds/crypto"
 	"github.com/jfindley/skds/shared"
 )
 
@@ -15,10 +16,14 @@ func TestAdminNew(t *testing.T) {
 	cfg.Runtime.CA = nil
 
 	var expected shared.Message
+	var resp shared.Message
 
 	expected.User.Name = "new admin user"
 
-	ts := testPost(expected, 204)
+	resp.User.Name = expected.User.Name
+	resp.User.Password = []byte("sdjfh2374ykdsf")
+
+	ts := testPost(expected, 200, resp)
 	defer ts.Close()
 	cfg.Startup.Address = strings.TrimPrefix(ts.URL, "https://")
 
@@ -26,13 +31,82 @@ func TestAdminNew(t *testing.T) {
 
 	app := cli.NewApp()
 
-	fs := flag.NewFlagSet("adminnew", flag.PanicOnError)
+	fs := flag.NewFlagSet("testing", flag.PanicOnError)
 	name := fs.String("name", "", "")
 	*name = expected.User.Name
 
 	ctx := cli.NewContext(app, fs, nil)
 
 	ok := AdminNew(cfg, ctx, "/test")
+	if !ok {
+		t.Fatal("Failed")
+	}
+}
+
+func TestAdminSuper(t *testing.T) {
+	cfg.NewClient()
+	// Skip TLS hostname verification
+	cfg.Runtime.CA = nil
+
+	var superKey crypto.Key
+	var userKey crypto.Key
+
+	err := superKey.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = userKey.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = cfg.Runtime.Keypair.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	superCrypt, err := crypto.Encrypt(superKey.Priv[:], cfg.Runtime.Keypair, cfg.Runtime.Keypair)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg.Session.GroupKey = superCrypt
+
+	var exp shared.Message
+	exp.User.Name = "test admin"
+	exp.User.Admin = true
+
+	var resp shared.Message
+	resp.Key.UserKey = userKey.Pub[:]
+
+	pubKeyReq := reqDef{
+		expected:  &exp,
+		code:      200,
+		url:       "/key/public/get/user",
+		responses: []shared.Message{resp},
+	}
+
+	// Don't try and check the contents of this request, as it varies each time.
+	superReq := reqDef{
+		code: 204,
+		url:  "/test",
+	}
+
+	ts := multiRequest(pubKeyReq, superReq)
+
+	defer ts.Close()
+	cfg.Startup.Address = strings.TrimPrefix(ts.URL, "https://")
+
+	cfg.Session.New(cfg)
+
+	app := cli.NewApp()
+
+	fs := flag.NewFlagSet("testing", flag.PanicOnError)
+	name := fs.String("name", "", "")
+	*name = "test admin"
+
+	ctx := cli.NewContext(app, fs, nil)
+
+	ok := AdminSuper(cfg, ctx, "/test")
 	if !ok {
 		t.Fatal("Failed")
 	}
@@ -55,7 +129,7 @@ func TestUserDel(t *testing.T) {
 
 	app := cli.NewApp()
 
-	fs := flag.NewFlagSet("adminnew", flag.PanicOnError)
+	fs := flag.NewFlagSet("testing", flag.PanicOnError)
 	name := fs.String("name", "", "")
 	admin := fs.Bool("admin", false, "")
 	*name = "admin user"
@@ -93,7 +167,7 @@ func TestUserList(t *testing.T) {
 
 	app := cli.NewApp()
 
-	fs := flag.NewFlagSet("adminnew", flag.PanicOnError)
+	fs := flag.NewFlagSet("testing", flag.PanicOnError)
 	admin := fs.Bool("admin", false, "")
 	*admin = true
 
