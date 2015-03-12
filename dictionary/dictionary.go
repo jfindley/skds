@@ -1,24 +1,43 @@
-// Dictionary of functions used by the HTTP handler
-
+// Dictionary of functions used by the HTTP handler and admin client
 package dictionary
 
 import (
-	"github.com/jfindley/skds/shared"
+	"github.com/codegangsta/cli"
 
-	// admin "github.com/jfindley/skds/admin/functions"
+	admin "github.com/jfindley/skds/admin/functions"
+	"github.com/jfindley/skds/log"
 	server "github.com/jfindley/skds/server/functions"
+	"github.com/jfindley/skds/shared"
 )
 
 // APIFunc defines an API function.
 type APIFunc struct {
-	Serverfn     func(*shared.Config, shared.Request)         // Function called by the server
-	Adminfn      func(*shared.Config, string, []string) error // Function called by the admin client
-	AuthRequired bool
-	AdminOnly    bool
-	SuperOnly    bool
-	Description  string
+	Serverfn     func(*shared.Config, shared.Request)            // Function called by the server
+	Adminfn      func(*shared.Config, *cli.Context, string) bool // Function called by the admin client
+	Flags        []cli.Flag                                      // CLI flags used by the admin client
+	AuthRequired bool                                            // Authentication required
+	AdminOnly    bool                                            // Admin clients only
+	SuperOnly    bool                                            // Super users only
+	Description  string                                          // Description of function
 }
 
+func (a *APIFunc) CliFunc(cfg *shared.Config, url string) (cmd cli.Command) {
+	cmd.Usage = a.Description
+	cmd.Flags = a.Flags
+
+	cmd.Action = func(ctx *cli.Context) {
+		ok := a.Adminfn(cfg, ctx, url)
+		if ok {
+			cfg.Log(log.INFO, "\nCommand complete\n\n")
+		} else {
+			cfg.Log(log.ERROR, "\nCommand failed\n\n")
+		}
+	}
+
+	return
+}
+
+// Dictionary is a mapping of URL to function.
 var Dictionary = map[string]APIFunc{
 	"/admin/password": AdminPass,
 
@@ -42,6 +61,7 @@ var Dictionary = map[string]APIFunc{
 	"/key/public/get/super":  SuperPubKey,
 	"/key/public/set":        SetPubKey,
 	"/key/private/get/group": GroupPrivKey,
+	"/key/private/get/user":  UserGroupKey,
 	"/key/private/set/super": SetSuperKey,
 
 	"/secret/create": SecretNew,
@@ -59,6 +79,13 @@ var Dictionary = map[string]APIFunc{
 	"/secret/remove/group": SecretRemoveGroup,
 }
 
+// Commonly used flags
+
+var name = cli.StringFlag{Name: "name, n", Usage: "name"}
+var group = cli.StringFlag{Name: "group, g", Usage: "group name"}
+var secret = cli.StringFlag{Name: "secret, s", Usage: "secret file"}
+var isadmin = cli.BoolFlag{Name: "admin, a", Usage: "applies to admins, not clients"}
+
 // Misc functions
 
 var GetCA = APIFunc{
@@ -69,8 +96,8 @@ var GetCA = APIFunc{
 // Admin functions
 
 var AdminPass = APIFunc{
-	Serverfn: server.UserPass,
-	// Adminfn:      admin.Pass,
+	Serverfn:     server.UserPass,
+	Adminfn:      admin.Password,
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Change your password",
@@ -78,6 +105,8 @@ var AdminPass = APIFunc{
 
 var AdminNew = APIFunc{
 	Serverfn:     server.AdminNew,
+	Adminfn:      admin.AdminNew,
+	Flags:        []cli.Flag{name},
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
@@ -86,6 +115,8 @@ var AdminNew = APIFunc{
 
 var UserDel = APIFunc{
 	Serverfn:     server.UserDel,
+	Adminfn:      admin.UserDel,
+	Flags:        []cli.Flag{name, isadmin},
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
@@ -94,6 +125,8 @@ var UserDel = APIFunc{
 
 var AdminSuper = APIFunc{
 	Serverfn:     server.AdminSuper,
+	Adminfn:      admin.AdminSuper,
+	Flags:        []cli.Flag{name},
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
@@ -110,6 +143,8 @@ var SetPubKey = APIFunc{
 
 var UserList = APIFunc{
 	Serverfn:     server.UserList,
+	Adminfn:      admin.UserList,
+	Flags:        []cli.Flag{isadmin},
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "List users",
@@ -202,6 +237,13 @@ var GroupPrivKey = APIFunc{
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Download the (encrypted with the super-key) private key for a group",
+}
+
+var UserGroupKey = APIFunc{
+	Serverfn:     server.UserGroupKey,
+	AuthRequired: true,
+	AdminOnly:    true,
+	Description:  "Get your group key",
 }
 
 var SecretNew = APIFunc{
