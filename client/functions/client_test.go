@@ -47,7 +47,7 @@ func TestGetCA(t *testing.T) {
 
 	cfg.Session.New(cfg)
 
-	ok := GetCA(cfg, "/ca")
+	ok := GetCA(cfg)
 	if !ok {
 		t.Fatal("Failed to get CA")
 	}
@@ -88,7 +88,7 @@ func TestRegister(t *testing.T) {
 
 	cfg.Session.New(cfg)
 
-	ok := Register(cfg, "/client/register")
+	ok := Register(cfg)
 	if !ok {
 		t.Fatal("Failed to register")
 	}
@@ -162,7 +162,7 @@ func TestGetSecrets(t *testing.T) {
 
 	cfg.Session.New(cfg)
 
-	ok := GetSecrets(cfg, "/client/secrets")
+	ok := GetSecrets(cfg)
 	if !ok {
 		t.Fatal("Failed to get secret")
 	}

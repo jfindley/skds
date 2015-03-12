@@ -13,22 +13,22 @@ import (
 	"github.com/jfindley/skds/shared"
 )
 
-func GetCA(cfg *shared.Config, url string) bool {
+func GetCA(cfg *shared.Config) (ok bool) {
 	// We wipe the CA here to skip TLS verification.
 	cfg.Runtime.CA = nil
-	resp, err := cfg.Session.Get(url)
+	resp, err := cfg.Session.Get("/ca")
 
 	if err != nil {
 		cfg.Log(log.ERROR, err)
-		return false
+		return
 	}
 	if len(resp) == 0 {
 		cfg.Log(log.ERROR, "Empty response from server")
-		return false
+		return
 	}
 	if len(resp) > 1 {
 		cfg.Log(log.ERROR, "Bad response from server")
-		return false
+		return
 	}
 
 	cfg.Runtime.CA = new(crypto.CertPool)
@@ -36,19 +36,19 @@ func GetCA(cfg *shared.Config, url string) bool {
 	err = cfg.Runtime.CA.Decode(resp[0].X509.Cert)
 	if err != nil {
 		cfg.Log(log.ERROR, err)
-		return false
+		return
 	}
 
 	err = shared.Write(cfg.Runtime.CA, cfg.Startup.Crypto.CACert)
 	if err != nil {
 		cfg.Log(log.ERROR, err)
-		return false
+		return
 	}
 
 	return true
 }
 
-func Register(cfg *shared.Config, url string) bool {
+func Register(cfg *shared.Config) (ok bool) {
 	var msg shared.Message
 
 	msg.User.Name = cfg.Startup.NodeName
@@ -56,21 +56,21 @@ func Register(cfg *shared.Config, url string) bool {
 	msg.User.Password = cfg.Runtime.Password
 	msg.User.Key = cfg.Runtime.Keypair.Pub[:]
 
-	_, err := cfg.Session.Post(url, msg)
+	_, err := cfg.Session.Post("/client/register", msg)
 	if err != nil {
 		cfg.Log(log.ERROR, err)
-		return false
+		return
 	}
 
 	return true
 }
 
-func GetSecrets(cfg *shared.Config, url string) (ok bool) {
-	resp, err := cfg.Session.Get(url)
+func GetSecrets(cfg *shared.Config) (ok bool) {
+	resp, err := cfg.Session.Get("/client/secrets")
 
 	if err != nil {
 		cfg.Log(log.ERROR, err)
-		return false
+		return
 	}
 	if len(resp) == 0 {
 		cfg.Log(log.INFO, "No secrets found")
@@ -88,7 +88,7 @@ func GetSecrets(cfg *shared.Config, url string) (ok bool) {
 			groupKeyEnc, err := crypto.Decrypt(r.Key.GroupPriv, cfg.Runtime.Keypair)
 			if err != nil {
 				cfg.Log(log.ERROR, "Unable to decrypt group key:", err)
-				return false
+				return
 			}
 
 			groupKey := new(crypto.Key)
@@ -97,7 +97,7 @@ func GetSecrets(cfg *shared.Config, url string) (ok bool) {
 			crypto.Zero(groupKeyEnc)
 			if err != nil {
 				cfg.Log(log.ERROR, "Error decoding group key:", err)
-				return false
+				return
 			}
 
 			secretKeyEnc, err := crypto.Decrypt(r.Key.Key, groupKey)
@@ -105,7 +105,7 @@ func GetSecrets(cfg *shared.Config, url string) (ok bool) {
 			groupKey.Zero()
 			if err != nil {
 				cfg.Log(log.ERROR, "Unable to decrypt secret key with group key:", err)
-				return false
+				return
 			}
 
 			err = secretKey.Decode(secretKeyEnc)
@@ -113,7 +113,7 @@ func GetSecrets(cfg *shared.Config, url string) (ok bool) {
 			crypto.Zero(secretKeyEnc)
 			if err != nil {
 				cfg.Log(log.ERROR, "Error decoding secret key:", err)
-				return false
+				return
 			}
 
 		} else {
@@ -121,7 +121,7 @@ func GetSecrets(cfg *shared.Config, url string) (ok bool) {
 			secretKeyEnc, err := crypto.Decrypt(r.Key.Key, cfg.Runtime.Keypair)
 			if err != nil {
 				cfg.Log(log.ERROR, "Unable to decrypt secret key:", err)
-				return false
+				return
 			}
 
 			err = secretKey.Decode(secretKeyEnc)
@@ -129,7 +129,7 @@ func GetSecrets(cfg *shared.Config, url string) (ok bool) {
 			crypto.Zero(secretKeyEnc)
 			if err != nil {
 				cfg.Log(log.ERROR, "Error decoding secret key:", err)
-				return false
+				return
 			}
 
 		}
@@ -141,7 +141,7 @@ func GetSecrets(cfg *shared.Config, url string) (ok bool) {
 
 		if err != nil {
 			cfg.Log(log.ERROR, "Unable to decrypt secret:", err)
-			return false
+			return
 		}
 
 		defer crypto.Zero(secret)
@@ -157,14 +157,14 @@ func GetSecrets(cfg *shared.Config, url string) (ok bool) {
 			err = ioutil.WriteFile(r.Key.Path, secret, os.FileMode(0600))
 			if err != nil {
 				cfg.Log(log.ERROR, "Unable to write file:", err)
-				return false
+				return
 			}
 			cfg.Log(log.INFO, "Created", r.Key.Path)
 			return true
 
 		case err != nil:
 			cfg.Log(log.ERROR, "Error opening file", r.Key.Path, err)
-			return false
+			return
 
 		default:
 			if bytes.Compare(curr, secret) != 0 {
@@ -174,7 +174,7 @@ func GetSecrets(cfg *shared.Config, url string) (ok bool) {
 				err = ioutil.WriteFile(r.Key.Path, secret, os.FileMode(0600))
 				if err != nil {
 					cfg.Log(log.ERROR, "Unable to write file:", err)
-					return false
+					return
 				}
 			} else {
 				cfg.Log(log.DEBUG, "File", r.Key.Path, "is up to date")
