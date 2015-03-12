@@ -182,6 +182,7 @@ var UserGroupAssign = APIFunc{
 
 var SetSuperKey = APIFunc{
 	Serverfn:     server.SetSuperKey,
+	Adminfn:      admin.SetSuperKey,
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
