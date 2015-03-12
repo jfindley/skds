@@ -39,6 +39,7 @@ var errorCodes = map[int]string{
 type Session struct {
 	Password   []byte
 	ServerCert []byte
+	GroupKey   crypto.Binary
 
 	sessionID  int64
 	sessionKey crypto.Binary
@@ -154,6 +155,14 @@ func (s *Session) Login(cfg *Config) (err error) {
 	s.sessionKey.Decode([]byte(r.Header.Get(HdrKey)))
 	if s.sessionKey == nil {
 		return errors.New("No session key in response")
+	}
+
+	msgs, err := ReadResp(r.Body)
+	if err != nil {
+		return
+	}
+	if len(msgs) == 1 {
+		s.GroupKey = msgs[0].User.Key
 	}
 	return
 }
