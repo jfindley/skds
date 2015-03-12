@@ -89,4 +89,5 @@ func cleanup(cfg *shared.Config) {
 	if err != nil && !os.IsNotExist(err) {
 		cfg.Log(log.ERROR, err)
 	}
+	os.Exit(2)
 }
