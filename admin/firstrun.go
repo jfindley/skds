@@ -78,7 +78,15 @@ func setup(cfg *shared.Config, ctx *cli.Context) (err error) {
 		return errors.New("Failed to change password")
 	}
 
+	ok = functions.SetPubKey(cfg, ctx, "/key/public/set")
+	if !ok {
+		return errors.New("Failed to set public key")
+	}
+
 	cfg.Log(log.INFO, "First-run setup complete")
+	cfg.Log(log.INFO, "If this is a fresh installation, please run:")
+	cfg.Log(log.INFO, "key private set super")
+	cfg.Log(log.INFO, "to set the the super-user key")
 	success = true
 	return
 }
@@ -102,4 +110,5 @@ func cleanup(cfg *shared.Config) {
 	if err != nil && !os.IsNotExist(err) {
 		cfg.Log(log.ERROR, err)
 	}
+	os.Exit(2)
 }
