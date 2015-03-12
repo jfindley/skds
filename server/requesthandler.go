@@ -48,7 +48,7 @@ func login(cfg *shared.Config, pool *auth.SessionPool, w http.ResponseWriter, r 
 
 	ok, session := auth.Auth(user, req.Req.Auth.Password)
 	if !ok {
-		req.Reply(400)
+		req.Reply(401)
 		return
 	}
 
