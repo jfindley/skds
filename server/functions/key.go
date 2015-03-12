@@ -69,33 +69,6 @@ func UserPubKey(cfg *shared.Config, r shared.Request) {
 }
 
 /*
-No input
-*/
-func UserGroupKey(cfg *shared.Config, r shared.Request) {
-	user := new(db.Users)
-	q := cfg.DB.First(user, r.Session.GetUID())
-	if q.Error != nil {
-		cfg.Log(log.ERROR, q.Error)
-		r.Reply(500)
-		return
-	}
-
-	var key crypto.Binary
-	var msg shared.Message
-
-	err := key.Decode(user.GroupKey)
-	if err != nil {
-		cfg.Log(log.ERROR, err)
-		r.Reply(500)
-		return
-	}
-
-	msg.Key.GroupPriv = key
-	r.Reply(200, msg)
-	return
-}
-
-/*
 User.Group => group name
 User.Admin => admin/client group
 */
