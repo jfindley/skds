@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
+	"github.com/jfindley/skds/crypto"
 	"github.com/jfindley/skds/dictionary"
 	"github.com/jfindley/skds/log"
 	"github.com/jfindley/skds/server/auth"
@@ -64,7 +65,24 @@ func login(cfg *shared.Config, pool *auth.SessionPool, w http.ResponseWriter, r 
 
 	cfg.Log(log.DEBUG, pool.Pool[id].Name, "logged in")
 
-	req.Reply(200)
+	if len(user.GroupKey) > 0 {
+		var key crypto.Binary
+		var msg shared.Message
+
+		err = key.Decode(user.GroupKey)
+		if err != nil {
+			cfg.Log(log.ERROR, err)
+			return
+		}
+
+		msg.User.Key = key
+		req.Reply(200, msg)
+
+	} else {
+
+		req.Reply(204)
+
+	}
 }
 
 func logout(cfg *shared.Config, pool *auth.SessionPool, w http.ResponseWriter, r *http.Request) {
