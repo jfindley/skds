@@ -61,7 +61,6 @@ var Dictionary = map[string]APIFunc{
 	"/key/public/get/super":  SuperPubKey,
 	"/key/public/set":        SetPubKey,
 	"/key/private/get/group": GroupPrivKey,
-	"/key/private/get/user":  UserGroupKey,
 	"/key/private/set/super": SetSuperKey,
 
 	"/secret/create": SecretNew,
@@ -237,13 +236,6 @@ var GroupPrivKey = APIFunc{
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Download the (encrypted with the super-key) private key for a group",
-}
-
-var UserGroupKey = APIFunc{
-	Serverfn:     server.UserGroupKey,
-	AuthRequired: true,
-	AdminOnly:    true,
-	Description:  "Get your group key",
 }
 
 var SecretNew = APIFunc{
