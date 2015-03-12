@@ -22,6 +22,11 @@ func setup(cfg *shared.Config) (err error) {
 		}
 	}()
 
+	err = os.Mkdir(cfg.Startup.Dir, os.FileMode(0700))
+	if err != nil && !os.IsExist(err) {
+		return
+	}
+
 	// We don't use the standard crypto.NewPassword function, because
 	// there's no reason for this to be human-readable.
 	cfg.Log(log.DEBUG, "Generating a random password")
@@ -49,13 +54,13 @@ func setup(cfg *shared.Config) (err error) {
 	}
 
 	cfg.Log(log.DEBUG, "Fetching server CA Cert")
-	ok := functions.GetCA(cfg, "/ca")
+	ok := functions.GetCA(cfg)
 	if !ok {
 		return errors.New("Failed to fetch server cert")
 	}
 
 	cfg.Log(log.INFO, "Registering with server")
-	ok = functions.Register(cfg, "/client/register")
+	ok = functions.Register(cfg)
 	if !ok {
 		return errors.New("Failed to register with server")
 	}
@@ -68,19 +73,20 @@ func setup(cfg *shared.Config) (err error) {
 func cleanup(cfg *shared.Config) {
 	cfg.Log(log.WARN, "Setup failed, performing cleanup")
 
-	err := os.Remove(cfg.Startup.Crypto.Password)
 	// We just log if an error occurs - there is nothing more we can do.
-	if err != nil {
+
+	err := os.Remove(cfg.Startup.Crypto.Password)
+	if err != nil && !os.IsNotExist(err) {
 		cfg.Log(log.ERROR, err)
 	}
 
 	err = os.Remove(cfg.Startup.Crypto.KeyPair)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		cfg.Log(log.ERROR, err)
 	}
 
 	err = os.Remove(cfg.Startup.Crypto.CACert)
-	if err != nil {
+	if err != nil && !os.IsNotExist(err) {
 		cfg.Log(log.ERROR, err)
 	}
 }
