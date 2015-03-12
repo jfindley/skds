@@ -1,8 +1,11 @@
 #!/bin/bash
 
 dirList=(
+    "./admin"
+    "./admin/functions"
     "./client/functions"
     "./crypto"
+    "./dictionary"
     "./server/auth"
     "./server/db"
     "./server/functions"
