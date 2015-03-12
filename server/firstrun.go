@@ -89,6 +89,7 @@ func setup(cfg *shared.Config) (err error) {
 	}
 
 	cfg.Log(log.INFO, "First-run install complete")
+	success = true
 	return
 }
 
@@ -116,4 +117,5 @@ func cleanup(cfg *shared.Config) {
 	if err != nil && !os.IsNotExist(err) {
 		cfg.Log(log.ERROR, err)
 	}
+	os.Exit(2)
 }
