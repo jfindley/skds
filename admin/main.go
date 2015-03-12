@@ -1,120 +1,153 @@
 package main
 
 import (
-	"bufio"
-	"bytes"
 	"code.google.com/p/gopass"
-	"errors"
-	"flag"
 	"fmt"
+	"github.com/codegangsta/cli"
 	"os"
 	"os/user"
-	"strings"
 
-	"github.com/jfindley/skds/config"
-	"github.com/jfindley/skds/dictionary"
-	"github.com/jfindley/skds/messages"
-	"github.com/jfindley/skds/transport"
+	"github.com/jfindley/skds/log"
+	"github.com/jfindley/skds/shared"
 )
 
-func ReadArgs() (cfg config.Config, install bool, args []string) {
-	usr, err := user.Current()
-	if err != nil {
-		// What?
-		panic(err)
-	}
-	dir := fmt.Sprintf("%s/%s", usr.HomeDir, ".skds")
-	flag.StringVar(&cfg.Startup.Dir, "c", dir, "Key directory.")
-	flag.IntVar(&cfg.Startup.LogLevel, "d", 1, "Log level in the range 0 to 3.")
-	flag.StringVar(&cfg.Startup.LogFile, "l", "STDOUT", "Logfile.  Use STDOUT for console logging.")
-	flag.BoolVar(&install, "setup", false, "Run setup.  Caution: this will regenerate master encryption keys, making you unable to read ALL previously encrypted data.")
-	flag.Parse()
-	args = flag.Args()
-	return
+func cfgFile(cfg *shared.Config, file string) string {
+	return fmt.Sprintf("%s%c%s", cfg.Startup.Dir, os.PathSeparator, file)
 }
 
-func loadConfig(cfg *config.Config) (input []string, err error) {
+func readFiles(cfg *shared.Config) (install bool, err error) {
+	err = shared.Read(cfg, cfgFile(cfg, "admin.conf"))
+	if os.IsNotExist(err) {
+		cfg.Startup.Crypto.CACert = cfgFile(cfg, "bundle.pem")
+		cfg.Startup.Crypto.KeyPair = cfgFile(cfg, "keypair.pem")
+		cfg.Startup.Crypto.ServerCert = cfgFile(cfg, "server-signature.pem")
+		install = true
+	} else if err != nil {
+		return
+	}
 
-	initCfg, install, input := ReadArgs()
-	*cfg = initCfg
+	err = shared.Read(cfg.Runtime.CA, cfg.Startup.Crypto.CACert)
+	if os.IsNotExist(err) {
+		if !install {
+			return false, fmt.Errorf("Missing file: %s", cfg.Startup.Crypto.KeyPair)
+		}
+	} else if err != nil {
+		return
+	}
+
+	err = shared.Read(cfg.Runtime.Keypair, cfg.Startup.Crypto.KeyPair)
+	if os.IsNotExist(err) {
+		if !install {
+			return false, fmt.Errorf("Missing file: %s", cfg.Startup.Crypto.KeyPair)
+		}
+	} else if err != nil {
+		return
+	}
+
+	return install, nil
+}
+
+func startup(cfg *shared.Config, ctx *cli.Context) {
+	if ctx.GlobalBool("verbose") {
+		cfg.Startup.LogLevel = log.DEBUG
+	} else {
+		cfg.Startup.LogLevel = log.INFO
+	}
+
+	cfg.Startup.Dir = ctx.GlobalString("dir")
+
+	err := cfg.StartLogging()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
+	cfg.Log(log.DEBUG, "Reading keys and configuration from disk")
+	install, err := readFiles(cfg)
+	if err != nil {
+		cfg.Fatal(err)
+	}
+
+	pass, err := gopass.GetPass("Please enter your password:\n")
+	if err != nil {
+		cfg.Fatal(err)
+	}
+	cfg.Runtime.Password = []byte(pass)
 
 	if install {
-		err = Setup(cfg)
+		cfg.Log(log.INFO, "Performing first-run install")
+		err = setup(cfg, ctx)
 		if err != nil {
-			return
+			cfg.Fatal(err)
 		}
-		cfg.Log(2, "Setup complete")
-		os.Exit(0)
 	} else {
-		err = cfg.Startup.Read("admin.conf")
-		if err != nil {
-			err = errors.New("Cannot parse config file")
-			return
+		if cfg.Startup.Crypto.ServerCert == "" {
+			cfg.Log(log.WARN, "Server certificate pinning disabled.  This is strongly discouraged.\n",
+				"Please consider configuring a ServerCert location.")
 		}
-		flag.Visit(config.SetOverrides(cfg))
-		// Don't load the private key until we actually need it
-		err = cfg.ReadFiles(config.CACert(), config.PublicKey())
-		if err != nil {
-			return
-		}
-		cfg.Runtime.Client, err = transport.ClientInit(cfg)
 
+		cfg.Session.New(cfg)
+
+		err = cfg.Session.Login(cfg)
+		if err != nil {
+			cfg.Fatal(err)
+		}
 	}
 	return
 }
 
 func main() {
-	cfg := new(config.Config)
-	input, err := loadConfig(cfg)
+	cfg := new(shared.Config)
+	cfg.NewClient()
+
+	cfg.Startup.LogFile = ""
+
+	usr, err := user.Current()
 	if err != nil {
-		cfg.Fatal(err)
+		fmt.Println("Error looking up user:", err)
+		os.Exit(2)
 	}
 
-	pass, err := gopass.GetPass("Enter password: ")
+	main := cli.NewApp()
+	main.Name = "SKDS admin client"
+	main.Version = shared.Version
+
+	main.Authors = []cli.Author{
+		cli.Author{
+			Name:  "James Findley",
+			Email: "skds@fastmail.fm",
+		},
+	}
+
+	cli.VersionFlag = cli.BoolFlag{
+		Name:  "version, V",
+		Usage: "print the version",
+	}
+
+	main.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:  "verbose, v",
+			Usage: "Verbose mode",
+		},
+		cli.StringFlag{
+			Name:  "dir, d",
+			Usage: "Path to store configuration and secret keys",
+			Value: usr.HomeDir + "/.skds",
+		},
+	}
+
+	main.Before = func(ctx *cli.Context) error {
+		startup(cfg, ctx)
+		return nil
+	}
+
+	main.Action = func(ctx *cli.Context) {
+		startCli(cfg, ctx)
+	}
+
+	err = main.Run(os.Args)
 	if err != nil {
-		return
-	}
-	cfg.Runtime.Password = []byte(pass)
-	var msg messages.Message
-	msg.Admin.Password = cfg.Runtime.Password
-	msg.Admin.Name = cfg.Startup.User
-
-	cfg.Runtime.Session = new(transport.Session)
-
-	err = cfg.Runtime.Session.NewClient(cfg)
-	if err != nil {
-		cfg.Log(0, err)
-		os.Exit(1)
-	}
-	cfg.Log(-1, "Connected")
-
-	err = cfg.Runtime.Session.AuthAdmin(cfg)
-
-	if bytes.Compare(config.DefaultAdminPass, cfg.Runtime.Password) == 0 {
-		cfg.Log(1, "Default password set - please change this right away!")
-	}
-
-	if len(input) == 0 {
-		scanner := bufio.NewScanner(os.Stdin)
-		scanner.Split(bufio.ScanLines)
-		for scanner.Scan() {
-			in := scanner.Text()
-			if in == "quit" || in == "exit" {
-				os.Exit(0)
-			}
-			args := strings.Fields(in)
-			err = dictionary.Dictionary.FindFunc(cfg, args)
-			if err != nil {
-				cfg.Log(1, err)
-			}
-		}
-		if err != nil {
-			cfg.Log(0, err)
-		}
-	} else {
-		err = dictionary.Dictionary.FindFunc(cfg, input)
-		if err != nil {
-			cfg.Fatal(err)
-		}
+		fmt.Println("Error starting application:", err)
+		os.Exit(2)
 	}
 }

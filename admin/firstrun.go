@@ -1,105 +1,105 @@
 package main
 
 import (
-	"crypto/x509"
+	"bufio"
+	"errors"
+	"fmt"
+	"github.com/codegangsta/cli"
 	"os"
+	"strings"
 
-	"github.com/jfindley/skds/config"
-	"github.com/jfindley/skds/crypto"
-	"github.com/jfindley/skds/messages"
+	"github.com/jfindley/skds/admin/functions"
+	client "github.com/jfindley/skds/client/functions"
+	"github.com/jfindley/skds/log"
 	"github.com/jfindley/skds/shared"
-	"github.com/jfindley/skds/transport"
 )
 
-func Setup(cfg *config.Config) (err error) {
-	// TODO: we should ship a default config file instead
-	loadDefaults(cfg)
+func setup(cfg *shared.Config, ctx *cli.Context) (err error) {
 
-	_, err = os.Stat(cfg.Startup.Dir)
-	if os.IsNotExist(err) {
-		err = os.Mkdir(cfg.Startup.Dir, 0700)
-		if err != nil {
-			return
+	var success bool
+
+	// Remove all created files on exit if something goes wrong.
+	defer func() {
+		if !success {
+			cleanup(cfg)
 		}
+	}()
+
+	reader := bufio.NewReader(os.Stdin)
+	fmt.Println("Enter your username:")
+	user, _ := reader.ReadString('\n')
+
+	fmt.Println("Enter the server hostname:")
+	hostname, _ := reader.ReadString('\n')
+
+	fmt.Println("Enter the server port (default 8443):")
+	port, _ := reader.ReadString('\n')
+
+	cfg.Startup.Address = strings.TrimSuffix(hostname, "\n") + ":" + strings.TrimSuffix(port, "\n")
+	cfg.Startup.NodeName = strings.TrimSuffix(user, "\n")
+
+	err = os.Mkdir(cfg.Startup.Dir, os.FileMode(0700))
+	if err != nil && !os.IsExist(err) {
+		return
 	}
-	err = cfg.Startup.Write("skds.conf")
+
+	cfg.Log(log.DEBUG, "Writing config file")
+	err = shared.Write(cfg, cfgFile(cfg, "admin.conf"))
 	if err != nil {
 		return
 	}
 
-	cfg.Log(3, "Connecting to server to retrieve CA Cert...")
-	cfg.Runtime.Client, err = transport.ClientInit(cfg)
-	if err != nil {
-		return
-	}
-	cfg.Runtime.CACert, err = GetCa(cfg)
-	if err != nil {
-		return
-	}
-	err = cfg.WriteFiles(config.CACert())
-	if err != nil {
-		return
-	}
-
-	cfg.Log(3, "Generating unique encryption keys...")
+	cfg.Log(log.DEBUG, "Generating keypair")
 	err = cfg.Runtime.Keypair.Generate()
 	if err != nil {
-		cfg.Fatal("Failed to generate a new secret key", err)
+		return
 	}
 
-	err = cfg.WriteFiles(config.PublicKey(), config.PrivateKey())
+	err = shared.Write(cfg.Runtime.Keypair, cfg.Startup.Crypto.KeyPair)
 	if err != nil {
 		return
 	}
-	cfg.Option(config.CAPool())
-	cfg.Runtime.Client, err = transport.ClientInit(cfg)
+
+	cfg.Session.New(cfg)
+
+	cfg.Log(log.DEBUG, "Fetching server CA Cert")
+	ok := client.GetCA(cfg)
+	if !ok {
+		return errors.New("Failed to fetch server cert")
+	}
+
+	err = cfg.Session.Login(cfg)
 	if err != nil {
 		return
 	}
-	cfg.Log(3, "Creating supergroup keys")
-	err = SuperKeys(cfg)
-	if err != nil {
-		return
+
+	ok = functions.Password(cfg, ctx, "/admin/password")
+	if !ok {
+		return errors.New("Failed to change password")
 	}
+
+	cfg.Log(log.INFO, "First-run setup complete")
+	success = true
 	return
 }
 
-func loadDefaults(cfg *config.Config) {
-	cfg.Startup.Name = "default_admin"
-	cfg.Startup.Address = "server.skds.com:8443"
-	cfg.Startup.Crypto.CACert = "ca.crt"
-	cfg.Startup.Crypto.PrivateKey = "priv_key"
-	cfg.Startup.Crypto.PublicKey = "pub_key"
-	cfg.Startup.User = "admin"
-}
+func cleanup(cfg *shared.Config) {
+	cfg.Log(log.WARN, "Setup failed, performing cleanup")
 
-func GetCa(cfg *config.Config) (*x509.Certificate, error) {
-	resp, err := transport.Request(cfg, "/ca", nil)
-	if err != nil {
-		return nil, err
-	}
-	return shared.CertDecode(resp.X509.Cert)
-}
+	// We just log if an error occurs - there is nothing more we can do.
 
-func SuperKeys(cfg *config.Config) (err error) {
-	var msg messages.Message
-	// Set the default password
-	cfg.Runtime.Password = []byte("password")
-
-	err = transport.NewAdminSession(cfg)
-	if err != nil {
-		cfg.Log(0, err)
-		return
+	err := os.Remove(cfgFile(cfg, "admin.conf"))
+	if err != nil && !os.IsNotExist(err) {
+		cfg.Log(log.ERROR, err)
 	}
 
-	key := new(crypto.Key)
-	err = key.Generate()
-	if err != nil {
-		cfg.Log(0, err)
+	err = os.Remove(cfg.Startup.Crypto.KeyPair)
+	if err != nil && !os.IsNotExist(err) {
+		cfg.Log(log.ERROR, err)
 	}
-	defer key.Zero()
-	msg.Key.GroupPub = key.Pub[:]
-	msg.Key.GroupPriv = key.Priv[:]
-	_, err = transport.Request(cfg, "/setup", msg)
-	return
+
+	err = os.Remove(cfg.Startup.Crypto.CACert)
+	if err != nil && !os.IsNotExist(err) {
+		cfg.Log(log.ERROR, err)
+	}
 }
