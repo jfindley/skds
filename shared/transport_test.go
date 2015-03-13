@@ -72,9 +72,13 @@ func TestStart(t *testing.T) {
 		t.Fatal(err)
 	}
 	cfg.Runtime.ServerCert = serverCert.Raw
+	cfg.Startup.Crypto.ServerCert = "test"
 
 	srv := new(Server)
-	srv.New(cfg)
+	err = srv.New(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	srv.Mux.HandleFunc("/", ret200)
 
