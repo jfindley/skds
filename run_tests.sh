@@ -14,10 +14,11 @@ dirList=(
     )
 
 runTests() {
-    pushd $1
+    pushd $1 > /dev/null
+    echo "testing $1"
     go test
     ret=$?
-    popd
+    popd > /dev/null
     return $ret
 }
 
