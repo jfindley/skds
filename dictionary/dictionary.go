@@ -87,6 +87,7 @@ var isadmin = cli.BoolFlag{Name: "admin, a", Usage: "applies to admins, not clie
 
 // Misc functions
 
+// No adminfn as admin just uses the client version of this function.
 var GetCA = APIFunc{
 	Serverfn:    server.GetCA,
 	Description: "Display the server CA",
@@ -132,6 +133,7 @@ var AdminSuper = APIFunc{
 	Description:  "Make an admin a superuser",
 }
 
+// No admin function, as this never gets called outside of firstrun
 var SetPubKey = APIFunc{
 	Serverfn:     server.SetPubkey,
 	AuthRequired: true,
@@ -177,7 +179,7 @@ var UserGroupAssign = APIFunc{
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
-	Description:  "Assign an admin to a group",
+	Description:  "Assign a user to a group",
 }
 
 var SetSuperKey = APIFunc{
