@@ -153,6 +153,8 @@ var UserList = APIFunc{
 
 var GroupNew = APIFunc{
 	Serverfn:     server.GroupNew,
+	Adminfn:      admin.GroupNew,
+	Flags:        []cli.Flag{name, isadmin},
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
@@ -161,6 +163,8 @@ var GroupNew = APIFunc{
 
 var GroupDel = APIFunc{
 	Serverfn:     server.GroupDel,
+	Adminfn:      admin.GroupDel,
+	Flags:        []cli.Flag{name, isadmin},
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
@@ -169,13 +173,16 @@ var GroupDel = APIFunc{
 
 var GroupList = APIFunc{
 	Serverfn:     server.GroupList,
+	Adminfn:      admin.GroupList,
 	AuthRequired: true,
 	AdminOnly:    true,
-	Description:  "list groups",
+	Description:  "List groups",
 }
 
 var UserGroupAssign = APIFunc{
 	Serverfn:     server.UserGroupAssign,
+	Adminfn:      admin.UserGroupAssign,
+	Flags:        []cli.Flag{name, isadmin, group},
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
