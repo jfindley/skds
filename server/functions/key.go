@@ -150,14 +150,14 @@ func GroupPrivKey(cfg *shared.Config, r shared.Request) {
 	var key crypto.Binary
 	var msg shared.Message
 
-	err := key.Decode(group.PubKey)
+	err := key.Decode(group.PrivKey)
 	if err != nil {
 		cfg.Log(log.ERROR, err)
 		r.Reply(500)
 		return
 	}
 
-	msg.Key.GroupPub = key
+	msg.Key.GroupPriv = key
 	r.Reply(200, msg)
 	return
 }

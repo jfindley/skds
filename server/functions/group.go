@@ -19,7 +19,7 @@ import (
 User.Group => group name
 User.Admin => group type
 Key.GroupPub => Public key for group
-Key.GroupPriv => Private key for group, encrypted with supergroup key
+Key.GroupPriv => Private key for group, encrypted with the super public key
 */
 func GroupNew(cfg *shared.Config, r shared.Request) {
 	if r.Req.User.Group == "" {
@@ -80,7 +80,7 @@ func GroupDel(cfg *shared.Config, r shared.Request) {
 	group.Admin = r.Req.User.Admin
 
 	if group.Name == "default" || group.Name == "super" {
-		r.Reply(400, shared.RespMessage("Builtin groups cannot be deleted"))
+		r.Reply(403, shared.RespMessage("Builtin groups cannot be deleted"))
 		return
 	}
 

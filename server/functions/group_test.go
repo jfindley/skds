@@ -82,7 +82,7 @@ func TestGroupDel(t *testing.T) {
 	req.Req.User.Admin = true
 
 	GroupDel(cfg, req)
-	if resp.Code != 400 {
+	if resp.Code != 403 {
 		t.Error("Bad response code:", resp.Code)
 	}
 
