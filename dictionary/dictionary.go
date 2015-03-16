@@ -248,21 +248,21 @@ var SecretList = APIFunc{
 	Adminfn:      admin.SecretList,
 	AuthRequired: true,
 	AdminOnly:    true,
-	Description:  "list all keys",
+	Description:  "list all secrets",
 }
 
 var SecretNew = APIFunc{
 	Serverfn:     server.SecretNew,
 	AuthRequired: true,
 	AdminOnly:    true,
-	Description:  "Add a new key",
+	Description:  "Add a new secret",
 }
 
 var SecretDel = APIFunc{
 	Serverfn:     server.SecretDel,
 	AuthRequired: true,
 	AdminOnly:    true,
-	Description:  "Delete a key",
+	Description:  "Delete a secret",
 }
 
 var SecretUpdate = APIFunc{
@@ -277,14 +277,14 @@ var SecretAssignUser = APIFunc{
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
-	Description:  "Assign a key to a user",
+	Description:  "Assign a secret to a user",
 }
 
 var SecretAssignGroup = APIFunc{
 	Serverfn:     server.SecretAssignGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
-	Description:  "Assign a key to a group",
+	Description:  "Assign a secret to a group",
 }
 
 var SecretRemoveUser = APIFunc{
@@ -292,26 +292,26 @@ var SecretRemoveUser = APIFunc{
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
-	Description:  "Remove a key from a user",
+	Description:  "Remove a secret from a user",
 }
 
 var SecretRemoveGroup = APIFunc{
 	Serverfn:     server.SecretRemoveGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
-	Description:  "Remove a key from a group",
+	Description:  "Remove a secret from a group",
 }
 
 var SecretListUser = APIFunc{
 	Serverfn:     server.SecretListUser,
 	AuthRequired: true,
 	AdminOnly:    true,
-	Description:  "List all keys for a user",
+	Description:  "List all secrets for a user",
 }
 
 var SecretListGroup = APIFunc{
 	Serverfn:     server.SecretListGroup,
 	AuthRequired: true,
 	AdminOnly:    true,
-	Description:  "List all keys for a group",
+	Description:  "List all secrets for a group",
 }
