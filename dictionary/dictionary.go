@@ -133,15 +133,6 @@ var AdminSuper = APIFunc{
 	Description:  "Make an admin a superuser",
 }
 
-// No admin function, as this never gets called outside of firstrun
-var SetPubKey = APIFunc{
-	Serverfn:     server.SetPubkey,
-	AuthRequired: true,
-	AdminOnly:    true,
-	SuperOnly:    true,
-	Description:  "Set your public key",
-}
-
 var UserList = APIFunc{
 	Serverfn:     server.UserList,
 	Adminfn:      admin.UserList,
@@ -211,13 +202,15 @@ var ClientRegister = APIFunc{
 	Description: "Register a new client",
 }
 
-// Secret functions
+// Key functions - these are rarely called directly, and are usually called
+// as part of some other action.
 
-var SecretList = APIFunc{
-	Serverfn:     server.SecretList,
+var SetPubKey = APIFunc{
+	Serverfn:     server.SetPubkey,
 	AuthRequired: true,
 	AdminOnly:    true,
-	Description:  "list all keys",
+	SuperOnly:    true,
+	Description:  "Set your public key",
 }
 
 var UserPubKey = APIFunc{
@@ -246,6 +239,16 @@ var GroupPrivKey = APIFunc{
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Download the (encrypted with the super-key) private key for a group",
+}
+
+// Secret functions
+
+var SecretList = APIFunc{
+	Serverfn:     server.SecretList,
+	Adminfn:      admin.SecretList,
+	AuthRequired: true,
+	AdminOnly:    true,
+	Description:  "list all keys",
 }
 
 var SecretNew = APIFunc{
