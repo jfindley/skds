@@ -304,3 +304,61 @@ func SecretAssignGroup(cfg *shared.Config, ctx *cli.Context, url string) (ok boo
 
 	return true
 }
+
+func SecretRemoveUser(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
+	name := ctx.String("name")
+	secret := ctx.String("secret")
+	admin := ctx.Bool("admin")
+
+	if name == "" {
+		cfg.Log(log.ERROR, "User name is required")
+		return
+	}
+
+	if secret == "" {
+		cfg.Log(log.ERROR, "Secret name is required")
+		return
+	}
+
+	var msg shared.Message
+	msg.Key.Name = secret
+	msg.User.Name = name
+	msg.User.Admin = admin
+
+	_, err := cfg.Session.Post(url, msg)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	return true
+}
+
+func SecretRemoveGroup(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
+	name := ctx.String("name")
+	secret := ctx.String("secret")
+	admin := ctx.Bool("admin")
+
+	if name == "" {
+		cfg.Log(log.ERROR, "Group name is required")
+		return
+	}
+
+	if secret == "" {
+		cfg.Log(log.ERROR, "Secret name is required")
+		return
+	}
+
+	var msg shared.Message
+	msg.Key.Name = secret
+	msg.User.Group = name
+	msg.User.Admin = admin
+
+	_, err := cfg.Session.Post(url, msg)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	return true
+}

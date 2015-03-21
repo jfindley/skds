@@ -329,7 +329,7 @@ var SecretAssignUser = APIFunc{
 var SecretAssignGroup = APIFunc{
 	Serverfn:     server.SecretAssignGroup,
 	Adminfn:      admin.SecretAssignGroup,
-	Flags:        []cli.Flag{name, secret},
+	Flags:        []cli.Flag{name, secret, isadmin},
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Assign a secret to a group",
@@ -337,6 +337,8 @@ var SecretAssignGroup = APIFunc{
 
 var SecretRemoveUser = APIFunc{
 	Serverfn:     server.SecretRemoveUser,
+	Adminfn:      admin.SecretRemoveUser,
+	Flags:        []cli.Flag{name, secret, isadmin},
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
@@ -345,6 +347,8 @@ var SecretRemoveUser = APIFunc{
 
 var SecretRemoveGroup = APIFunc{
 	Serverfn:     server.SecretRemoveGroup,
+	Adminfn:      admin.SecretRemoveGroup,
+	Flags:        []cli.Flag{name, secret, isadmin},
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Remove a secret from a group",

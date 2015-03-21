@@ -368,3 +368,65 @@ func TestSecretAssignGroup(t *testing.T) {
 		t.Fatal("Failed")
 	}
 }
+
+func TestSecretRemoveUser(t *testing.T) {
+	var exp shared.Message
+	exp.User.Name = "test user"
+	exp.User.Admin = true
+	exp.Key.Name = "test secret"
+
+	ts := testPost(exp, 204)
+	defer ts.Close()
+	cfg.Startup.Address = strings.TrimPrefix(ts.URL, "https://")
+
+	cfg.Session.New(cfg)
+
+	app := cli.NewApp()
+
+	fs := flag.NewFlagSet("testing", flag.PanicOnError)
+	name := fs.String("name", "", "")
+	secret := fs.String("secret", "", "")
+	admin := fs.Bool("admin", false, "")
+
+	*name = exp.User.Name
+	*secret = exp.Key.Name
+	*admin = exp.User.Admin
+
+	ctx := cli.NewContext(app, fs, nil)
+
+	ok := SecretRemoveUser(cfg, ctx, "/test")
+	if !ok {
+		t.Fatal("Failed")
+	}
+}
+
+func TestSecretRemoveGroup(t *testing.T) {
+	var exp shared.Message
+	exp.User.Group = "test user"
+	exp.User.Admin = true
+	exp.Key.Name = "test secret"
+
+	ts := testPost(exp, 204)
+	defer ts.Close()
+	cfg.Startup.Address = strings.TrimPrefix(ts.URL, "https://")
+
+	cfg.Session.New(cfg)
+
+	app := cli.NewApp()
+
+	fs := flag.NewFlagSet("testing", flag.PanicOnError)
+	name := fs.String("name", "", "")
+	secret := fs.String("secret", "", "")
+	admin := fs.Bool("admin", false, "")
+
+	*name = exp.User.Group
+	*secret = exp.Key.Name
+	*admin = exp.User.Admin
+
+	ctx := cli.NewContext(app, fs, nil)
+
+	ok := SecretRemoveGroup(cfg, ctx, "/test")
+	if !ok {
+		t.Fatal("Failed")
+	}
+}
