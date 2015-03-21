@@ -246,7 +246,7 @@ func SecretAssignUser(cfg *shared.Config, ctx *cli.Context, url string) (ok bool
 		return
 	}
 
-	msg.Key.Secret, err = crypto.Encrypt(privKey.Priv[:], cfg.Runtime.Keypair, &pubKey)
+	msg.Key.Key, err = crypto.Encrypt(privKey.Priv[:], cfg.Runtime.Keypair, &pubKey)
 	if err != nil {
 		// if Encrypt errored it may not have zeroed the data
 		privKey.Zero()
@@ -302,7 +302,7 @@ func SecretAssignGroup(cfg *shared.Config, ctx *cli.Context, url string) (ok boo
 		return
 	}
 
-	msg.Key.Secret, err = crypto.Encrypt(privKey.Priv[:], cfg.Runtime.Keypair, &pubKey)
+	msg.Key.Key, err = crypto.Encrypt(privKey.Priv[:], cfg.Runtime.Keypair, &pubKey)
 	if err != nil {
 		// if Encrypt errored it may not have zeroed the data
 		privKey.Zero()
