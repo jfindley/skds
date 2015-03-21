@@ -78,11 +78,15 @@ func (k *Key) Decode(data []byte) (err error) {
 
 // Zero wipes a key and dereferences the pointers.
 func (k *Key) Zero() {
-	for i := range k.Priv {
-		k.Priv[i] ^= k.Priv[i]
+	if k.Priv != nil {
+		for i := range k.Priv {
+			k.Priv[i] ^= k.Priv[i]
+		}
 	}
-	for i := range k.Pub {
-		k.Pub[i] ^= k.Pub[i]
+	if k.Pub != nil {
+		for i := range k.Pub {
+			k.Pub[i] ^= k.Pub[i]
+		}
 	}
 	k.Pub = nil
 	k.Priv = nil
@@ -144,7 +148,7 @@ func Encrypt(payload []byte, key *Key, pubkey *Key) (out []byte, err error) {
 // Decrypt is a general asymmetric decryption
 // Uses the public key enclosed in the payload for decryption.
 func Decrypt(payload []byte, key *Key) (out []byte, err error) {
-	if len(payload) < 25 {
+	if len(payload) <= 25 {
 		return nil, errors.New("Null input")
 	}
 	// Read nonce from start of payload
