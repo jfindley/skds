@@ -88,7 +88,7 @@ var name = cli.StringFlag{Name: "name, n", Usage: "name"}
 var group = cli.StringFlag{Name: "group, g", Usage: "group name"}
 var secret = cli.StringFlag{Name: "secret, s", Usage: "secret name"}
 var file = cli.StringFlag{Name: "file, f", Usage: "filename"}
-var path = cli.StringFlag{Name: "path, f", Usage: "path secret will be saved at on clients"}
+var path = cli.StringFlag{Name: "path, p", Usage: "path secret will be saved at on clients"}
 var isadmin = cli.BoolFlag{Name: "admin, a", Usage: "applies to admins, not clients"}
 
 // Misc functions
