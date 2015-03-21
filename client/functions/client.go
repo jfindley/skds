@@ -79,28 +79,26 @@ func GetSecrets(cfg *shared.Config) (ok bool) {
 
 	for _, r := range resp {
 		secretKey := new(crypto.Key)
+		secretKey.Priv = new([32]byte)
 
 		// If there is a group key, first decrypt that, and use it to
 		// decrypt the secret key.  Otherwise just decrypt the secret
 		// key directly.
 		if r.Key.GroupPriv != nil {
 
-			groupKeyEnc, err := crypto.Decrypt(r.Key.GroupPriv, cfg.Runtime.Keypair)
+			groupBuf, err := crypto.Decrypt(r.Key.GroupPriv, cfg.Runtime.Keypair)
 			if err != nil {
 				cfg.Log(log.ERROR, "Unable to decrypt group key:", err)
 				return
 			}
 
 			groupKey := new(crypto.Key)
-			err = groupKey.Decode(groupKeyEnc)
-			// No matter what happens, zero the group key at this point
-			crypto.Zero(groupKeyEnc)
-			if err != nil {
-				cfg.Log(log.ERROR, "Error decoding group key:", err)
-				return
-			}
+			groupKey.Priv = new([32]byte)
 
-			secretKeyEnc, err := crypto.Decrypt(r.Key.Key, groupKey)
+			copy(groupKey.Priv[:], groupBuf)
+			crypto.Zero(groupBuf)
+
+			buf, err := crypto.Decrypt(r.Key.Key, groupKey)
 			// No matter what happens, zero the group key at this point
 			groupKey.Zero()
 			if err != nil {
@@ -108,29 +106,19 @@ func GetSecrets(cfg *shared.Config) (ok bool) {
 				return
 			}
 
-			err = secretKey.Decode(secretKeyEnc)
-			// No matter what happens, zero the secret key at this point
-			crypto.Zero(secretKeyEnc)
-			if err != nil {
-				cfg.Log(log.ERROR, "Error decoding secret key:", err)
-				return
-			}
+			copy(secretKey.Priv[:], buf)
+			crypto.Zero(buf)
 
 		} else {
 
-			secretKeyEnc, err := crypto.Decrypt(r.Key.Key, cfg.Runtime.Keypair)
+			buf, err := crypto.Decrypt(r.Key.Key, cfg.Runtime.Keypair)
 			if err != nil {
 				cfg.Log(log.ERROR, "Unable to decrypt secret key:", err)
 				return
 			}
 
-			err = secretKey.Decode(secretKeyEnc)
-			// No matter what happens, zero the secret key at this point
-			crypto.Zero(secretKeyEnc)
-			if err != nil {
-				cfg.Log(log.ERROR, "Error decoding secret key:", err)
-				return
-			}
+			copy(secretKey.Priv[:], buf)
+			crypto.Zero(buf)
 
 		}
 
