@@ -181,6 +181,10 @@ func SecretPrivKey(cfg *shared.Config, r shared.Request) {
 		return
 	}
 
+	var key crypto.Binary
+	var msg shared.Message
+	var err error
+
 	if !r.Session.CheckACL(cfg.DB, master) {
 		r.Reply(403)
 		return
@@ -203,11 +207,8 @@ func SecretPrivKey(cfg *shared.Config, r shared.Request) {
 		return
 	}
 
-	var key crypto.Binary
-	var msg shared.Message
-
 	if user.Secret != nil {
-		err := key.Decode(user.Secret)
+		err = key.Decode(user.Secret)
 		if err != nil {
 			cfg.Log(log.ERROR, err)
 			r.Reply(500)
@@ -216,7 +217,7 @@ func SecretPrivKey(cfg *shared.Config, r shared.Request) {
 
 		msg.Key.UserKey = key
 	} else {
-		err := key.Decode(group.Secret)
+		err = key.Decode(group.Secret)
 		if err != nil {
 			cfg.Log(log.ERROR, err)
 			r.Reply(500)
