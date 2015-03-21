@@ -107,7 +107,7 @@ func TestGroupPrivKey(t *testing.T) {
 	}
 }
 
-func TestSecretPrivKey(t *testing.T) {
+func TestSecretPubKey(t *testing.T) {
 	var err error
 	var resp shared.Message
 
@@ -130,6 +130,37 @@ func TestSecretPrivKey(t *testing.T) {
 
 	if bytes.Compare(key.Pub[:], resp.Key.Key) != 0 {
 		t.Fatal("Key does not match")
+	}
+}
+
+func TestSecretPrivKey(t *testing.T) {
+	groupKey := []byte("test data")
+	var err error
+	var resp shared.Message
+
+	resp.Key.GroupPriv, err = crypto.Encrypt(groupKey, superKey, superKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var exp shared.Message
+	exp.Key.Name = "test secret"
+
+	ts := testPost(exp, 200, resp)
+	defer ts.Close()
+	cfg.Startup.Address = strings.TrimPrefix(ts.URL, "https://")
+
+	cfg.Session.New(cfg)
+
+	key, err := secretPrivKey(cfg, exp.Key.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// groupKey will have been zeroed, use a new var
+	testData := []byte("test data")
+	if bytes.Compare(key.Priv[:len(testData)], testData) != 0 {
+		t.Error("Key does not match")
 	}
 }
 

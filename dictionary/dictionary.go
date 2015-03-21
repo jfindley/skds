@@ -58,13 +58,14 @@ var Dictionary = map[string]APIFunc{
 	"/client/register": ClientRegister,
 	"/client/secrets":  ClientGetSecret,
 
-	"/key/public/get/user":   UserPubKey,
-	"/key/public/get/group":  GroupPubKey,
-	"/key/public/get/super":  SuperPubKey,
-	"/key/public/get/secret": SecretPubKey,
-	"/key/public/set":        SetPubKey,
-	"/key/private/get/group": GroupPrivKey,
-	"/key/private/set/super": SetSuperKey,
+	"/key/public/get/user":    UserPubKey,
+	"/key/public/get/group":   GroupPubKey,
+	"/key/public/get/super":   SuperPubKey,
+	"/key/public/get/secret":  SecretPubKey,
+	"/key/public/set":         SetPubKey,
+	"/key/private/get/group":  GroupPrivKey,
+	"/key/private/get/secret": SecretPrivKey,
+	"/key/private/set/super":  SetSuperKey,
 
 	"/secret/create": SecretNew,
 	"/secret/get":    SecretGet,
@@ -243,6 +244,13 @@ var SecretPubKey = APIFunc{
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Download the public key for a secret",
+}
+
+var SecretPrivKey = APIFunc{
+	Serverfn:     server.SecretPrivKey,
+	AuthRequired: true,
+	AdminOnly:    true,
+	Description:  "Download the (encrypted) private key for a secret",
 }
 
 var SetSuperKey = APIFunc{
