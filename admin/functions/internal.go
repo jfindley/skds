@@ -131,6 +131,8 @@ func secretPubKey(cfg *shared.Config, name string) (key crypto.Key, err error) {
 		return key, errors.New("Bad response from server")
 	}
 
+	key.Pub = new([32]byte)
+
 	copy(key.Pub[:], resp[0].Key.Key)
 
 	return
