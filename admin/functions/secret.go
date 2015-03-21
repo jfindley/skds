@@ -206,3 +206,101 @@ func SecretUpdate(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 
 	return true
 }
+
+func SecretAssignUser(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
+	name := ctx.String("name")
+	secret := ctx.String("secret")
+	admin := ctx.Bool("admin")
+
+	if name == "" {
+		cfg.Log(log.ERROR, "User name is required")
+		return
+	}
+
+	if secret == "" {
+		cfg.Log(log.ERROR, "Secret name is required")
+		return
+	}
+
+	var msg shared.Message
+	msg.Key.Name = secret
+	msg.User.Name = name
+	msg.User.Admin = admin
+
+	pubKey, err := userPubKey(cfg, name, admin)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	data, err := secretGet(cfg, secret)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	msg.Key.Secret, err = crypto.Encrypt(data, cfg.Runtime.Keypair, &pubKey)
+	if err != nil {
+		// if Encrypt errored it may not have zeroed the data
+		crypto.Zero(data)
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	_, err = cfg.Session.Post(url, msg)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	return true
+}
+
+func SecretAssignGroup(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
+	name := ctx.String("name")
+	secret := ctx.String("secret")
+	admin := ctx.Bool("admin")
+
+	if name == "" {
+		cfg.Log(log.ERROR, "Group name is required")
+		return
+	}
+
+	if secret == "" {
+		cfg.Log(log.ERROR, "Secret name is required")
+		return
+	}
+
+	var msg shared.Message
+	msg.Key.Name = secret
+	msg.User.Group = name
+	msg.User.Admin = admin
+
+	pubKey, err := groupPubKey(cfg, name, admin)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	data, err := secretGet(cfg, secret)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	msg.Key.Secret, err = crypto.Encrypt(data, cfg.Runtime.Keypair, &pubKey)
+	if err != nil {
+		// if Encrypt errored it may not have zeroed the data
+		crypto.Zero(data)
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	_, err = cfg.Session.Post(url, msg)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	return true
+}

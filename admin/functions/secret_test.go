@@ -232,3 +232,139 @@ func TestSecretUpdate(t *testing.T) {
 		t.Fatal("Failed")
 	}
 }
+
+func TestSecretAssignUser(t *testing.T) {
+	pubKey := new(crypto.Key)
+	err := pubKey.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var pubResp shared.Message
+	pubResp.Key.Key = pubKey.Pub[:]
+
+	pubKeyReq := reqDef{
+		code:      200,
+		url:       "/key/public/get/user",
+		responses: []shared.Message{pubResp},
+	}
+
+	key := new(crypto.Key)
+	key.Generate()
+
+	var secretResp shared.Message
+
+	secretResp.Key.Secret, err = crypto.Encrypt([]byte("test data"), key, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	secretResp.Key.UserKey, err = crypto.Encrypt(key.Priv[:], cfg.Runtime.Keypair, cfg.Runtime.Keypair)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	secretReq := reqDef{
+		code:      200,
+		url:       "/secret/get",
+		responses: []shared.Message{secretResp},
+	}
+
+	// Don't try and check the contents of this request, as it varies each time.
+	assignReq := reqDef{
+		code: 204,
+		url:  "/test",
+	}
+
+	ts := multiRequest(pubKeyReq, secretReq, assignReq)
+	defer ts.Close()
+	cfg.Startup.Address = strings.TrimPrefix(ts.URL, "https://")
+
+	cfg.Session.New(cfg)
+
+	app := cli.NewApp()
+
+	fs := flag.NewFlagSet("testing", flag.PanicOnError)
+	name := fs.String("name", "", "")
+	secret := fs.String("secret", "", "")
+	admin := fs.Bool("admin", false, "")
+
+	*name = "test user"
+	*secret = "test secret"
+	*admin = true
+
+	ctx := cli.NewContext(app, fs, nil)
+
+	ok := SecretAssignUser(cfg, ctx, "/test")
+	if !ok {
+		t.Fatal("Failed")
+	}
+}
+
+func TestSecretAssignGroup(t *testing.T) {
+	pubKey := new(crypto.Key)
+	err := pubKey.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var pubResp shared.Message
+	pubResp.Key.Key = pubKey.Pub[:]
+
+	pubKeyReq := reqDef{
+		code:      200,
+		url:       "/key/public/get/group",
+		responses: []shared.Message{pubResp},
+	}
+
+	key := new(crypto.Key)
+	key.Generate()
+
+	var secretResp shared.Message
+
+	secretResp.Key.Secret, err = crypto.Encrypt([]byte("test data"), key, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	secretResp.Key.UserKey, err = crypto.Encrypt(key.Priv[:], cfg.Runtime.Keypair, cfg.Runtime.Keypair)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	secretReq := reqDef{
+		code:      200,
+		url:       "/secret/get",
+		responses: []shared.Message{secretResp},
+	}
+
+	// Don't try and check the contents of this request, as it varies each time.
+	assignReq := reqDef{
+		code: 204,
+		url:  "/test",
+	}
+
+	ts := multiRequest(pubKeyReq, secretReq, assignReq)
+	defer ts.Close()
+	cfg.Startup.Address = strings.TrimPrefix(ts.URL, "https://")
+
+	cfg.Session.New(cfg)
+
+	app := cli.NewApp()
+
+	fs := flag.NewFlagSet("testing", flag.PanicOnError)
+	name := fs.String("name", "", "")
+	secret := fs.String("secret", "", "")
+	admin := fs.Bool("admin", false, "")
+
+	*name = "test group"
+	*secret = "test secret"
+	*admin = true
+
+	ctx := cli.NewContext(app, fs, nil)
+
+	ok := SecretAssignGroup(cfg, ctx, "/test")
+	if !ok {
+		t.Fatal("Failed")
+	}
+}
