@@ -213,6 +213,8 @@ func SecretPrivKey(cfg *shared.Config, r shared.Request) {
 			r.Reply(500)
 			return
 		}
+
+		msg.Key.UserKey = key
 	} else {
 		err := key.Decode(group.Secret)
 		if err != nil {
@@ -220,9 +222,10 @@ func SecretPrivKey(cfg *shared.Config, r shared.Request) {
 			r.Reply(500)
 			return
 		}
+
+		msg.Key.GroupPriv = key
 	}
 
-	msg.Key.Key = key
 	r.Reply(200, msg)
 	return
 }

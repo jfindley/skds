@@ -253,7 +253,7 @@ func TestSecretPrivKeyUser(t *testing.T) {
 		t.Fatal("Expected 1 message")
 	}
 
-	if !key.Compare(msgs[0].Key.Key) {
+	if !key.Compare(msgs[0].Key.UserKey) {
 		t.Error("Key does not match")
 	}
 }
@@ -306,7 +306,7 @@ func TestSecretPrivKeyGroup(t *testing.T) {
 		t.Fatal("Expected 1 message")
 	}
 
-	if !key.Compare(msgs[0].Key.Key) {
+	if !key.Compare(msgs[0].Key.GroupPriv) {
 		t.Error("Key does not match")
 	}
 }
