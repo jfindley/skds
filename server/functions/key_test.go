@@ -1,6 +1,7 @@
 package functions
 
 import (
+	"bytes"
 	"testing"
 
 	"github.com/jfindley/skds/crypto"
@@ -205,7 +206,7 @@ func TestGroupPrivKey(t *testing.T) {
 	}
 }
 
-func TestSecretPrivKeyUser(t *testing.T) {
+func TestSecretPubKey(t *testing.T) {
 	req, resp := respRecorder()
 	req.Session = session
 	var err error
@@ -219,26 +220,22 @@ func TestSecretPrivKeyUser(t *testing.T) {
 	testSecret := new(db.MasterSecrets)
 	testSecret.Name = "test secret"
 
-	cfg.DB.Create(testSecret)
+	data := make([]byte, 56)
+	copy(data[24:], []byte("test data"))
 
-	var key crypto.Binary
-	key = []byte("test key")
+	var secret crypto.Binary
+	secret = data
 
-	enc, err := key.Encode()
+	testSecret.Secret, err = secret.Encode()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	testKey := new(db.UserSecrets)
-	testKey.SID = testSecret.Id
-	testKey.UID = req.Session.GetUID()
-	testKey.Secret = enc
-
-	cfg.DB.Create(testKey)
+	cfg.DB.Create(testSecret)
 
 	req.Req.Key.Name = testSecret.Name
 
-	SecretPrivKey(cfg, req)
+	SecretPubKey(cfg, req)
 
 	if resp.Code != 200 {
 		t.Fatal("Bad response code:", resp.Code)
@@ -253,60 +250,7 @@ func TestSecretPrivKeyUser(t *testing.T) {
 		t.Fatal("Expected 1 message")
 	}
 
-	if !key.Compare(msgs[0].Key.UserKey) {
-		t.Error("Key does not match")
-	}
-}
-
-func TestSecretPrivKeyGroup(t *testing.T) {
-	req, resp := respRecorder()
-	req.Session = session
-	var err error
-
-	err = setupDB(cfg)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer cfg.DB.Close()
-
-	testSecret := new(db.MasterSecrets)
-	testSecret.Name = "test secret"
-
-	cfg.DB.Create(testSecret)
-
-	var key crypto.Binary
-	key = []byte("test key")
-
-	enc, err := key.Encode()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	testKey := new(db.GroupSecrets)
-	testKey.SID = testSecret.Id
-	testKey.GID = req.Session.GetGID()
-	testKey.Secret = enc
-
-	cfg.DB.Create(testKey)
-
-	req.Req.Key.Name = testSecret.Name
-
-	SecretPrivKey(cfg, req)
-
-	if resp.Code != 200 {
-		t.Fatal("Bad response code:", resp.Code)
-	}
-
-	msgs, err := shared.ReadResp(resp.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if len(msgs) != 1 {
-		t.Fatal("Expected 1 message")
-	}
-
-	if !key.Compare(msgs[0].Key.GroupPriv) {
+	if bytes.Compare(data[24:56], msgs[0].Key.Key) != 0 {
 		t.Error("Key does not match")
 	}
 }

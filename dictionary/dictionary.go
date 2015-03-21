@@ -234,11 +234,11 @@ var GroupPrivKey = APIFunc{
 	Description:  "Download the (encrypted with the super-key) private key for a group",
 }
 
-var SecretPrivKey = APIFunc{
-	Serverfn:     server.SecretPrivKey,
+var SecretPubKey = APIFunc{
+	Serverfn:     server.SecretPubKey,
 	AuthRequired: true,
 	AdminOnly:    true,
-	Description:  "Download the (encrypted) private keys for a secret",
+	Description:  "Download the public key for a secret",
 }
 
 var SetSuperKey = APIFunc{
