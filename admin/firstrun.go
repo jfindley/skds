@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"code.google.com/p/gopass"
 	"errors"
 	"fmt"
 	"github.com/codegangsta/cli"
