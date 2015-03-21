@@ -17,6 +17,17 @@ func Password(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 			return
 		}
 
+		confirm, err := gopass.GetPass("Please enter the password again:\n")
+		if err != nil {
+			cfg.Log(log.ERROR, err)
+			return
+		}
+
+		if newPass != confirm {
+			cfg.Log(log.ERROR, "Passwords do not match, please try again")
+			continue
+		}
+
 		if cfg.Runtime.Password.Compare([]byte(newPass)) {
 			cfg.Log(log.ERROR, "Password must not match previous password")
 			continue

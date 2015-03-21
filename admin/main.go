@@ -68,12 +68,6 @@ func startup(cfg *shared.Config, ctx *cli.Context) {
 		cfg.Fatal(err)
 	}
 
-	pass, err := gopass.GetPass("Please enter your password:\n")
-	if err != nil {
-		cfg.Fatal(err)
-	}
-	cfg.Runtime.Password = []byte(pass)
-
 	if install {
 		cfg.Log(log.INFO, "Performing first-run install")
 		err = setup(cfg, ctx)
@@ -85,6 +79,12 @@ func startup(cfg *shared.Config, ctx *cli.Context) {
 			cfg.Log(log.WARN, "Server certificate pinning disabled.  This is strongly discouraged.\n",
 				"Please consider configuring a ServerCert location.")
 		}
+
+		pass, err := gopass.GetPass("Please enter your password:\n")
+		if err != nil {
+			cfg.Fatal(err)
+		}
+		cfg.Runtime.Password = []byte(pass)
 
 		cfg.Session.New(cfg)
 

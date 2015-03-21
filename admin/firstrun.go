@@ -29,6 +29,12 @@ func setup(cfg *shared.Config, ctx *cli.Context) (err error) {
 	fmt.Println("Enter your username:")
 	user, _ := reader.ReadString('\n')
 
+	pass, err := gopass.GetPass("Please enter your password:\n")
+	if err != nil {
+		cfg.Fatal(err)
+	}
+	cfg.Runtime.Password = []byte(pass)
+
 	fmt.Println("Enter the server hostname:")
 	hostname, _ := reader.ReadString('\n')
 
