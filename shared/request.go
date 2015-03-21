@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
@@ -82,11 +83,18 @@ func (s *Session) Get(url string) (resp []Message, err error) {
 		return
 	}
 
+	resp, err = ReadResp(r.Body)
+
 	if r.StatusCode > 299 || r.StatusCode < 200 {
-		return resp, errors.New(errorCodes[r.StatusCode])
+		if len(resp) > 0 && resp[0].Response != "" {
+			err = fmt.Errorf("%s: %s", errorCodes[r.StatusCode], resp[0].Response)
+		} else {
+			err = errors.New(errorCodes[r.StatusCode])
+		}
+		return resp, err
 	}
 
-	return ReadResp(r.Body)
+	return
 }
 
 func (s *Session) Post(url string, msg Message) (resp []Message, err error) {
@@ -113,11 +121,18 @@ func (s *Session) Post(url string, msg Message) (resp []Message, err error) {
 		return
 	}
 
+	resp, err = ReadResp(r.Body)
+
 	if r.StatusCode > 299 || r.StatusCode < 200 {
-		return resp, errors.New(errorCodes[r.StatusCode])
+		if len(resp) > 0 && resp[0].Response != "" {
+			err = fmt.Errorf("%s: %s", errorCodes[r.StatusCode], resp[0].Response)
+		} else {
+			err = errors.New(errorCodes[r.StatusCode])
+		}
+		return resp, err
 	}
 
-	return ReadResp(r.Body)
+	return
 }
 
 func (s *Session) Login(cfg *Config) (err error) {
@@ -164,6 +179,7 @@ func (s *Session) Login(cfg *Config) (err error) {
 	if len(msgs) == 1 {
 		s.GroupKey = msgs[0].User.Key
 	}
+
 	return
 }
 
