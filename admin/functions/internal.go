@@ -18,10 +18,8 @@ func superPubKey(cfg *shared.Config) (key crypto.Key, err error) {
 	}
 
 	key.Pub = new([32]byte)
+	copy(key.Pub[:], resp[0].Key.Key)
 
-	for i := range resp[0].Key.Key {
-		key.Pub[i] = resp[0].Key.Key[i]
-	}
 	return
 }
 
@@ -41,10 +39,8 @@ func userPubKey(cfg *shared.Config, name string, admin bool) (key crypto.Key, er
 	}
 
 	key.Pub = new([32]byte)
+	copy(key.Pub[:], resp[0].Key.UserKey)
 
-	for i := range resp[0].Key.UserKey {
-		key.Pub[i] = resp[0].Key.UserKey[i]
-	}
 	return
 }
 
@@ -64,10 +60,8 @@ func groupPubKey(cfg *shared.Config, name string, admin bool) (key crypto.Key, e
 	}
 
 	key.Pub = new([32]byte)
+	copy(key.Pub[:], resp[0].Key.GroupPub)
 
-	for i := range resp[0].Key.GroupPub {
-		key.Pub[i] = resp[0].Key.GroupPub[i]
-	}
 	return
 }
 
@@ -96,10 +90,7 @@ func groupPrivKey(cfg *shared.Config, name string, admin bool) (key crypto.Key, 
 	superKey := new(crypto.Key)
 
 	superKey.Priv = new([32]byte)
-
-	for i := range buf {
-		superKey.Priv[i] = buf[i]
-	}
+	copy(superKey.Priv[:], buf)
 
 	defer superKey.Zero()
 
@@ -111,10 +102,8 @@ func groupPrivKey(cfg *shared.Config, name string, admin bool) (key crypto.Key, 
 	defer crypto.Zero(privKey)
 
 	key.Priv = new([32]byte)
+	copy(key.Priv[:], privKey)
 
-	for i := range privKey {
-		key.Priv[i] = privKey[i]
-	}
 	return
 }
 
@@ -132,7 +121,6 @@ func secretPubKey(cfg *shared.Config, name string) (key crypto.Key, err error) {
 	}
 
 	key.Pub = new([32]byte)
-
 	copy(key.Pub[:], resp[0].Key.Key)
 
 	return
