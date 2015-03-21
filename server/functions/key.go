@@ -163,6 +163,71 @@ func GroupPrivKey(cfg *shared.Config, r shared.Request) {
 }
 
 /*
+Key.Name => secret name
+*/
+func SecretPrivKey(cfg *shared.Config, r shared.Request) {
+	var master db.MasterSecrets
+	var user db.UserSecrets
+	var group db.GroupSecrets
+
+	q := cfg.DB.Find(&master, "name = ?", r.Req.Key.Name)
+	if q.RecordNotFound() {
+		r.Reply(404, shared.RespMessage("Secret does not exist"))
+		return
+	}
+	if q.Error != nil {
+		cfg.Log(log.ERROR, q.Error)
+		r.Reply(500)
+		return
+	}
+
+	if !r.Session.CheckACL(cfg.DB, master) {
+		r.Reply(403)
+		return
+	}
+
+	q = cfg.DB.Where("SID = ? and UID = ?", master.Id, r.Session.GetUID()).First(&user)
+	if q.RecordNotFound() {
+		// We don't check for record not found separately here - if we passed ACL and the first
+		// query didn't find anything, something internal has gone wrong if this is not found either,
+		// therefore a 500 response is a reasonable reply.
+		q = cfg.DB.Where("SID = ? and GID = ?", master.Id, r.Session.GetGID()).First(&group)
+		if q.Error != nil {
+			cfg.Log(log.ERROR, q.Error)
+			r.Reply(500)
+			return
+		}
+	} else if q.Error != nil {
+		cfg.Log(log.ERROR, q.Error)
+		r.Reply(500)
+		return
+	}
+
+	var key crypto.Binary
+	var msg shared.Message
+
+	if user.Secret != nil {
+		err := key.Decode(user.Secret)
+		if err != nil {
+			cfg.Log(log.ERROR, err)
+			r.Reply(500)
+			return
+		}
+	} else {
+		err := key.Decode(group.Secret)
+		if err != nil {
+			cfg.Log(log.ERROR, err)
+			r.Reply(500)
+			return
+		}
+	}
+
+	msg.Key.Key = key
+	r.Reply(200, msg)
+	return
+}
+
+/*
 Key.GroupPub => supergroup public key
 Key.GroupPriv => supergroup private key encrypted by the calling admin
 */

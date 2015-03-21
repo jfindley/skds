@@ -56,12 +56,13 @@ var Dictionary = map[string]APIFunc{
 	"/client/register": ClientRegister,
 	"/client/secrets":  ClientGetSecret,
 
-	"/key/public/get/user":   UserPubKey,
-	"/key/public/get/group":  GroupPubKey,
-	"/key/public/get/super":  SuperPubKey,
-	"/key/public/set":        SetPubKey,
-	"/key/private/get/group": GroupPrivKey,
-	"/key/private/set/super": SetSuperKey,
+	"/key/public/get/user":    UserPubKey,
+	"/key/public/get/group":   GroupPubKey,
+	"/key/public/get/super":   SuperPubKey,
+	"/key/public/set":         SetPubKey,
+	"/key/private/get/group":  GroupPrivKey,
+	"/key/private/get/secret": SecretPrivKey,
+	"/key/private/set/super":  SetSuperKey,
 
 	"/secret/create": SecretNew,
 	"/secret/delete": SecretDel,
@@ -181,15 +182,6 @@ var UserGroupAssign = APIFunc{
 	Description:  "Assign a user to a group",
 }
 
-var SetSuperKey = APIFunc{
-	Serverfn:     server.SetSuperKey,
-	Adminfn:      admin.SetSuperKey,
-	AuthRequired: true,
-	AdminOnly:    true,
-	SuperOnly:    true,
-	Description:  "Set the group key for the super-group",
-}
-
 // Client functions
 
 var ClientGetSecret = APIFunc{
@@ -242,6 +234,22 @@ var GroupPrivKey = APIFunc{
 	Description:  "Download the (encrypted with the super-key) private key for a group",
 }
 
+var SecretPrivKey = APIFunc{
+	Serverfn:     server.SecretPrivKey,
+	AuthRequired: true,
+	AdminOnly:    true,
+	Description:  "Download the (encrypted) private keys for a secret",
+}
+
+var SetSuperKey = APIFunc{
+	Serverfn:     server.SetSuperKey,
+	Adminfn:      admin.SetSuperKey,
+	AuthRequired: true,
+	AdminOnly:    true,
+	SuperOnly:    true,
+	Description:  "Set the group key for the super-group",
+}
+
 // Secret functions
 
 var SecretList = APIFunc{
@@ -290,6 +298,8 @@ var SecretDel = APIFunc{
 
 var SecretUpdate = APIFunc{
 	Serverfn:     server.SecretUpdate,
+	Adminfn:      admin.SecretUpdate,
+	Flags:        []cli.Flag{name, file},
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Update the data of a secret",
