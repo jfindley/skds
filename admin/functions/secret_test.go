@@ -171,3 +171,64 @@ func TestSecretDel(t *testing.T) {
 		t.Fatal("Failed")
 	}
 }
+
+func TestSecretUpdate(t *testing.T) {
+	key := new(crypto.Key)
+	err := key.Generate()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var resp shared.Message
+	resp.Key.Key = key.Pub[:]
+
+	pubKeyReq := reqDef{
+		code:      200,
+		url:       "/key/public/get/secret",
+		responses: []shared.Message{resp},
+	}
+
+	// Don't try and check the contents of this request, as it varies each time.
+	secretReq := reqDef{
+		code: 204,
+		url:  "/test",
+	}
+
+	ts := multiRequest(pubKeyReq, secretReq)
+	defer ts.Close()
+	cfg.Startup.Address = strings.TrimPrefix(ts.URL, "https://")
+
+	cfg.Session.New(cfg)
+
+	app := cli.NewApp()
+
+	fs := flag.NewFlagSet("testing", flag.PanicOnError)
+	name := fs.String("name", "", "")
+	file := fs.String("file", "", "")
+
+	*name = "test secret"
+
+	fh, err := ioutil.TempFile(os.TempDir(), "admin_secret")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	*file = fh.Name()
+
+	_, err = fh.WriteString("secret data")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = fh.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx := cli.NewContext(app, fs, nil)
+
+	ok := SecretUpdate(cfg, ctx, "/test")
+	if !ok {
+		t.Fatal("Failed")
+	}
+}

@@ -159,3 +159,50 @@ func SecretDel(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 
 	return true
 }
+
+func SecretUpdate(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
+	name := ctx.String("name")
+	file := ctx.String("file")
+
+	if name == "" {
+		cfg.Log(log.ERROR, "Secret name is required")
+		return
+	}
+
+	if file == "" {
+		cfg.Log(log.ERROR, "Secret file is required")
+		return
+	}
+
+	data, err := ioutil.ReadFile(file)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	defer crypto.Zero(data)
+
+	key, err := secretPubKey(cfg, name)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	var msg shared.Message
+
+	msg.Key.Name = name
+
+	msg.Key.Secret, err = crypto.Encrypt(data, cfg.Runtime.Keypair, &key)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	_, err = cfg.Session.Post(url, msg)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	return true
+}
