@@ -92,6 +92,8 @@ func startup(cfg *shared.Config, ctx *cli.Context) {
 		if err != nil {
 			cfg.Fatal(err)
 		}
+
+		cfg.Log(log.INFO, "Logged in")
 	}
 	return
 }
