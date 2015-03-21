@@ -109,7 +109,8 @@ func main() {
 	}
 
 	main := cli.NewApp()
-	main.Name = "SKDS admin client"
+	main.Name = "SKDS"
+	main.Usage = "admin client"
 	main.Version = shared.Version
 
 	main.Authors = []cli.Author{
