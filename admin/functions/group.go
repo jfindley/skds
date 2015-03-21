@@ -81,13 +81,13 @@ func GroupList(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 		return
 	}
 
-	cfg.Log(log.INFO, "Group name\t\t", "Group type")
+	cfg.Log(log.INFO, "Group name\t\t\t", "Group type")
 	for i := range resp {
 		gtype := "client"
 		if resp[i].User.Admin {
 			gtype = "admin"
 		}
-		cfg.Log(log.INFO, resp[i].User.Group, "\t\t", gtype)
+		cfg.Log(log.INFO, resp[i].User.Group, "\t\t\t", gtype)
 	}
 	return true
 }

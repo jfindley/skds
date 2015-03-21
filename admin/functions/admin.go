@@ -174,9 +174,9 @@ func UserList(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 		return
 	}
 
-	cfg.Log(log.INFO, "Name\t\t", "Group")
+	cfg.Log(log.INFO, "Name\t\t\t", "Group")
 	for i := range resp {
-		cfg.Log(log.INFO, resp[i].User.Name, "\t\t", resp[i].User.Group)
+		cfg.Log(log.INFO, resp[i].User.Name, "\t\t\t", resp[i].User.Group)
 	}
 
 	return true

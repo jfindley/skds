@@ -44,7 +44,7 @@ func SecretListUser(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) 
 
 	cfg.Log(log.INFO, "Secret name\t\t\tSecret Path")
 	for i := range resp {
-		cfg.Log(log.INFO, resp[i].Key.Name, resp[i].Key.Path)
+		cfg.Log(log.INFO, resp[i].Key.Name, "\t\t\t", resp[i].Key.Path)
 	}
 
 	return true
@@ -71,7 +71,7 @@ func SecretListGroup(cfg *shared.Config, ctx *cli.Context, url string) (ok bool)
 
 	cfg.Log(log.INFO, "Secret name\t\t\tSecret Path")
 	for i := range resp {
-		cfg.Log(log.INFO, resp[i].Key.Name, resp[i].Key.Path)
+		cfg.Log(log.INFO, resp[i].Key.Name, "\t\t\t", resp[i].Key.Path)
 	}
 
 	return true

@@ -80,6 +80,8 @@ func setup(cfg *shared.Config, ctx *cli.Context) (err error) {
 		return
 	}
 
+	cfg.Log(log.INFO, "Logged in")
+
 	ok = functions.Password(cfg, ctx, "/admin/password")
 	if !ok {
 		return errors.New("Failed to change password")
