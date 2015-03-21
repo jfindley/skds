@@ -82,7 +82,8 @@ var Dictionary = map[string]APIFunc{
 
 var name = cli.StringFlag{Name: "name, n", Usage: "name"}
 var group = cli.StringFlag{Name: "group, g", Usage: "group name"}
-var secret = cli.StringFlag{Name: "secret, s", Usage: "secret file"}
+var file = cli.StringFlag{Name: "file, f", Usage: "filename"}
+var path = cli.StringFlag{Name: "path, f", Usage: "path secret will be saved at on clients"}
 var isadmin = cli.BoolFlag{Name: "admin, a", Usage: "applies to admins, not clients"}
 
 // Misc functions
@@ -271,6 +272,8 @@ var SecretListGroup = APIFunc{
 
 var SecretNew = APIFunc{
 	Serverfn:     server.SecretNew,
+	Adminfn:      admin.SecretNew,
+	Flags:        []cli.Flag{name, file},
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Add a new secret",
