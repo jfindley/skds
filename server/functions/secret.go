@@ -145,7 +145,7 @@ func SecretListGroup(cfg *shared.Config, r shared.Request) {
 Key.Name => name
 Key.Secret => encrypted payload
 Key.Key => unique encryption key for payload encrypted with the supergroup pubkey
-Key.UserKey (only required if called by non-super admin) => copy of above key, encrypted with admin local key
+Key.UserKey => copy of above key, encrypted with admin local key
 */
 func SecretNew(cfg *shared.Config, r shared.Request) {
 	tx := cfg.DB.Begin()
@@ -162,11 +162,7 @@ func SecretNew(cfg *shared.Config, r shared.Request) {
 		}
 	}()
 
-	if r.Req.Key.Name == "" || r.Req.Key.Secret == nil || r.Req.Key.Key == nil {
-		r.Reply(400, shared.RespMessage("Incomplete request"))
-		return
-	}
-	if !r.Session.IsSuper() && r.Req.Key.UserKey == nil {
+	if r.Req.Key.Name == "" || r.Req.Key.Secret == nil || r.Req.Key.Key == nil || r.Req.Key.UserKey == nil {
 		r.Reply(400, shared.RespMessage("Incomplete request"))
 		return
 	}
