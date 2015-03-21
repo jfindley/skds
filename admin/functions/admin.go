@@ -97,41 +97,28 @@ func AdminSuper(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 
 	superKey, err := crypto.Decrypt(cfg.Session.GroupKey, cfg.Runtime.Keypair)
 	if err != nil {
-		cfg.Log(log.ERROR, "Unable to decrypt super-key")
+		cfg.Log(log.ERROR, "Unable to decrypt super key")
 		return
 	}
 
 	defer crypto.Zero(superKey)
 
-	var msg shared.Message
-	msg.User.Name = name
-	msg.User.Admin = true
-
-	resp, err := cfg.Session.Post("/key/public/get/user", msg)
+	pubKey, err := userPubKey(cfg, name, true)
 	if err != nil {
-		cfg.Log(log.ERROR, "Error while downloading user's public key:", err)
+		cfg.Log(log.ERROR, err)
 		return
 	}
 
-	if len(resp) != 1 {
-		cfg.Log(log.ERROR, "Bad response from server")
-		return
-	}
+	var msg shared.Message
 
-	pubKey := new(crypto.Key)
-	pubKey.Pub = new([32]byte)
-
-	for i := range resp[0].Key.UserKey {
-		pubKey.Pub[i] = resp[0].Key.UserKey[i]
-	}
-
-	userKey, err := crypto.Encrypt(superKey, cfg.Runtime.Keypair, pubKey)
+	msg.Key.GroupPriv, err = crypto.Encrypt(superKey, cfg.Runtime.Keypair, &pubKey)
 	if err != nil {
 		cfg.Log(log.ERROR, "Unable to encrypt super-key for", name)
 		return
 	}
 
-	msg.Key.GroupPriv = userKey
+	msg.User.Name = name
+	msg.User.Admin = true
 
 	_, err = cfg.Session.Post(url, msg)
 	if err != nil {

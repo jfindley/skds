@@ -11,17 +11,8 @@ import (
 )
 
 func TestGroupNew(t *testing.T) {
-	cfg.NewClient()
-	// Skip TLS hostname verification
-	cfg.Runtime.CA = nil
-
 	key := new(crypto.Key)
 	err := key.Generate()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = cfg.Runtime.Keypair.Generate()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,10 +55,6 @@ func TestGroupNew(t *testing.T) {
 }
 
 func TestGroupDel(t *testing.T) {
-	cfg.NewClient()
-	// Skip TLS hostname verification
-	cfg.Runtime.CA = nil
-
 	var expected shared.Message
 	expected.User.Group = "test group"
 	expected.User.Admin = true
@@ -95,10 +82,6 @@ func TestGroupDel(t *testing.T) {
 }
 
 func TestGroupList(t *testing.T) {
-	cfg.NewClient()
-	// Skip TLS hostname verification
-	cfg.Runtime.CA = nil
-
 	var resp shared.Message
 	resp.User.Group = "test group"
 	resp.User.Admin = true
@@ -121,17 +104,10 @@ func TestGroupList(t *testing.T) {
 }
 
 func TestUserGroupAssign(t *testing.T) {
-	cfg.NewClient()
-	// Skip TLS hostname verification
-	cfg.Runtime.CA = nil
+	var err error
 
 	key := new(crypto.Key)
-	err := key.Generate()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	err = cfg.Runtime.Keypair.Generate()
+	err = key.Generate()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +131,7 @@ func TestUserGroupAssign(t *testing.T) {
 	privexp.User.Admin = true
 
 	var privresp shared.Message
-	privresp.Key.GroupPriv, err = crypto.Encrypt(key.Priv[:], cfg.Runtime.Keypair, key)
+	privresp.Key.GroupPriv, err = crypto.Encrypt(key.Priv[:], superKey, superKey)
 	if err != nil {
 		t.Fatal(err)
 	}

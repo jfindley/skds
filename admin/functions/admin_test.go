@@ -11,10 +11,6 @@ import (
 )
 
 func TestAdminNew(t *testing.T) {
-	cfg.NewClient()
-	// Skip TLS hostname verification
-	cfg.Runtime.CA = nil
-
 	var expected shared.Message
 	var resp shared.Message
 
@@ -44,32 +40,13 @@ func TestAdminNew(t *testing.T) {
 }
 
 func TestAdminSuper(t *testing.T) {
-	cfg.NewClient()
-	// Skip TLS hostname verification
-	cfg.Runtime.CA = nil
-
-	var superKey crypto.Key
 	var userKey crypto.Key
+	var err error
 
-	err := superKey.Generate()
-	if err != nil {
-		t.Fatal(err)
-	}
 	err = userKey.Generate()
 	if err != nil {
 		t.Fatal(err)
 	}
-	err = cfg.Runtime.Keypair.Generate()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	superCrypt, err := crypto.Encrypt(superKey.Priv[:], cfg.Runtime.Keypair, cfg.Runtime.Keypair)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	cfg.Session.GroupKey = superCrypt
 
 	var exp shared.Message
 	exp.User.Name = "test admin"
@@ -113,10 +90,6 @@ func TestAdminSuper(t *testing.T) {
 }
 
 func TestUserDel(t *testing.T) {
-	cfg.NewClient()
-	// Skip TLS hostname verification
-	cfg.Runtime.CA = nil
-
 	var expected shared.Message
 	expected.User.Name = "admin user"
 	expected.User.Admin = true
@@ -144,10 +117,6 @@ func TestUserDel(t *testing.T) {
 }
 
 func TestUserList(t *testing.T) {
-	cfg.NewClient()
-	// Skip TLS hostname verification
-	cfg.Runtime.CA = nil
-
 	var expected shared.Message
 	expected.User.Admin = true
 

@@ -17,22 +17,10 @@ func GroupNew(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 		return
 	}
 
-	resp, err := cfg.Session.Get("/key/public/get/super")
+	pubKey, err := superPubKey(cfg)
 	if err != nil {
-		cfg.Log(log.ERROR, "Unable to fetch super-group pubkey:", err)
+		cfg.Log(log.ERROR, err)
 		return
-	}
-
-	if len(resp) != 1 {
-		cfg.Log(log.ERROR, "Bad response from server")
-		return
-	}
-
-	pubKey := new(crypto.Key)
-	pubKey.Pub = new([32]byte)
-
-	for i := range resp[0].Key.Key {
-		pubKey.Pub[i] = resp[0].Key.Key[i]
 	}
 
 	var msg shared.Message
@@ -48,7 +36,7 @@ func GroupNew(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 
 	defer key.Zero()
 
-	msg.Key.GroupPriv, err = crypto.Encrypt(key.Priv[:], cfg.Runtime.Keypair, pubKey)
+	msg.Key.GroupPriv, err = crypto.Encrypt(key.Priv[:], cfg.Runtime.Keypair, &pubKey)
 	if err != nil {
 		cfg.Log(log.ERROR, "Unable to encrypt group key")
 		return
@@ -119,55 +107,28 @@ func UserGroupAssign(cfg *shared.Config, ctx *cli.Context, url string) (ok bool)
 		return
 	}
 
+	pubKey, err := userPubKey(cfg, name, admin)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	privKey, err := groupPrivKey(cfg, group, admin)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
 	var msg shared.Message
 
-	msg.User.Name = name
-	msg.User.Admin = admin
-
-	resp, err := cfg.Session.Post("/key/public/get/user", msg)
-	if err != nil {
-		cfg.Log(log.ERROR, "Unable to fetch user pubkey:", err)
-		return
-	}
-
-	if len(resp) != 1 {
-		cfg.Log(log.ERROR, "Bad response from server")
-		return
-	}
-
-	if resp[0].Key.UserKey == nil {
-		cfg.Log(log.ERROR, "User does not have a public key set")
-		return
-	}
-
-	pubKey := new(crypto.Key)
-	pubKey.Pub = new([32]byte)
-
-	for i := range resp[0].Key.UserKey {
-		pubKey.Pub[i] = resp[0].Key.UserKey[i]
-	}
-
-	msg = shared.Message{}
-	msg.User.Admin = admin
-	msg.User.Group = group
-
-	resp, err = cfg.Session.Post("/key/private/get/group", msg)
-	if err != nil {
-		cfg.Log(log.ERROR, "Unable to fetch group privkey:", err)
-		return
-	}
-
-	if len(resp) != 1 {
-		cfg.Log(log.ERROR, "Bad response from server")
-		return
-	}
-
-	msg.Key.GroupPriv, err = crypto.Encrypt(resp[0].Key.GroupPriv, cfg.Runtime.Keypair, pubKey)
+	msg.Key.GroupPriv, err = crypto.Encrypt(privKey.Priv[:], cfg.Runtime.Keypair, &pubKey)
 	if err != nil {
 		cfg.Log(log.ERROR, "Unable to encrypt group key")
 		return
 	}
 
+	msg.User.Admin = admin
+	msg.User.Group = group
 	msg.User.Group = group
 
 	_, err = cfg.Session.Post(url, msg)

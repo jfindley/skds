@@ -6,18 +6,47 @@ import (
 	"net/http/httptest"
 	"reflect"
 
+	"github.com/jfindley/skds/crypto"
 	"github.com/jfindley/skds/log"
 	"github.com/jfindley/skds/shared"
 )
 
 var cfg *shared.Config
 
+var superKey *crypto.Key
+
 func init() {
 	cfg = new(shared.Config)
+	superKey = new(crypto.Key)
+	cfg.Runtime.Keypair = new(crypto.Key)
+
+	var err error
 
 	// Skip log.INFO to avoid seeing all the output from every function
 	cfg.Startup.LogLevel = log.WARN
 	cfg.StartLogging()
+
+	err = superKey.Generate()
+	if err != nil {
+		panic(err)
+	}
+
+	err = cfg.Runtime.Keypair.Generate()
+	if err != nil {
+		panic(err)
+	}
+
+	// Encrypt zero's the data, so copy it.
+	buf := make([]byte, 32) // NaCL uses 32byte keys
+	copy(buf, superKey.Priv[:])
+
+	cfg.Session.GroupKey, err = crypto.Encrypt(buf, cfg.Runtime.Keypair, cfg.Runtime.Keypair)
+	if err != nil {
+		panic(err)
+	}
+
+	// Skip TLS hostname verification
+	cfg.Runtime.CA = nil
 }
 
 type reqDef struct {

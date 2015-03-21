@@ -9,18 +9,18 @@ import (
 )
 
 func SetSuperKey(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
-	superKey := new(crypto.Key)
+	key := new(crypto.Key)
 
-	err := superKey.Generate()
+	err := key.Generate()
 	if err != nil {
 		cfg.Log(log.ERROR, "Failed to generate super-key")
 		return
 	}
 
-	defer superKey.Zero()
+	defer key.Zero()
 
 	// We encrypt the private part of the key with our own key
-	data, err := crypto.Encrypt(superKey.Priv[:], cfg.Runtime.Keypair, cfg.Runtime.Keypair)
+	data, err := crypto.Encrypt(key.Priv[:], cfg.Runtime.Keypair, cfg.Runtime.Keypair)
 	if err != nil {
 		cfg.Log(log.ERROR, "Failed to encrypt super-key")
 		return
@@ -29,7 +29,7 @@ func SetSuperKey(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 	var msg shared.Message
 
 	msg.Key.GroupPriv = data
-	msg.Key.GroupPub = superKey.Pub[:]
+	msg.Key.GroupPub = key.Pub[:]
 
 	_, err = cfg.Session.Post(url, msg)
 	if err != nil {
