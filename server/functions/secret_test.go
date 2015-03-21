@@ -218,8 +218,54 @@ func TestSecretNew(t *testing.T) {
 	}
 }
 
+func TestSecretGet(t *testing.T) {
+	req, resp := respRecorder()
+	req.Session = session
+	var err error
+
+	err = setupDB(cfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer cfg.DB.Close()
+
+	secret := new(db.MasterSecrets)
+	groupSecret := new(db.GroupSecrets)
+
+	secret.Name = "test secret 1"
+	secret.Secret, err = crypto.NewBinary([]byte("test data")).Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.DB.Create(secret)
+
+	groupSecret.GID = req.Session.GetGID()
+	groupSecret.SID = secret.Id
+	groupSecret.Secret, err = crypto.NewBinary([]byte("test data")).Encode()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg.DB.Create(groupSecret)
+
+	req.Req.Key.Name = secret.Name
+
+	SecretGet(cfg, req)
+	if resp.Code != 200 {
+		t.Error("Bad response code:", resp.Code)
+	}
+
+	msgs, err := shared.ReadResp(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(msgs) != 1 {
+		t.Error("Expected 1 results, got", len(msgs))
+	}
+
+}
+
 func TestSecretDel(t *testing.T) {
-	cfg.DB.LogMode(true)
 	req, resp := respRecorder()
 	req.Session = unpriv
 	var err error

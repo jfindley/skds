@@ -254,6 +254,89 @@ func SecretNew(cfg *shared.Config, r shared.Request) {
 }
 
 /*
+Key.Name => secret name
+*/
+func SecretGet(cfg *shared.Config, r shared.Request) {
+	var msg shared.Message
+	var err error
+	var master db.MasterSecrets
+	var user db.UserSecrets
+	var group db.GroupSecrets
+
+	q := cfg.DB.Find(&master, "name = ?", r.Req.Key.Name)
+	if q.RecordNotFound() {
+		r.Reply(404)
+		return
+	} else if q.Error != nil {
+		cfg.Log(log.ERROR, q.Error)
+		r.Reply(500)
+		return
+	}
+
+	if !r.Session.CheckACL(cfg.DB, master) {
+		r.Reply(403)
+		return
+	}
+
+	var masterSec crypto.Binary
+	err = masterSec.Decode(master.Secret)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		r.Reply(500)
+		return
+	}
+
+	msg.Key.Secret = masterSec
+
+	q = cfg.DB.Where("SID = ? and UID = ?", master.Id, r.Session.GetUID()).First(&user)
+	if q.Error != nil && !q.RecordNotFound() {
+		cfg.Log(log.ERROR, q.Error)
+		r.Reply(500)
+		return
+	}
+
+	q = cfg.DB.Where("SID = ? and GID = ?", master.Id, r.Session.GetGID()).First(&group)
+	if q.Error != nil && !q.RecordNotFound() {
+		cfg.Log(log.ERROR, q.Error)
+		r.Reply(500)
+		return
+	}
+
+	var key crypto.Binary
+
+	if user.Secret != nil {
+
+		err = key.Decode(user.Secret)
+		if err != nil {
+			cfg.Log(log.ERROR, err)
+			r.Reply(500)
+			return
+		}
+		msg.Key.UserKey = key
+
+	} else if group.Secret != nil {
+
+		err = key.Decode(group.Secret)
+		if err != nil {
+			cfg.Log(log.ERROR, err)
+			r.Reply(500)
+			return
+		}
+		msg.Key.GroupPriv = key
+
+	}
+
+	if key == nil {
+		cfg.Log(log.ERROR, "No user/group key found")
+		r.Reply(500)
+		return
+	}
+
+	r.Reply(200, msg)
+	return
+}
+
+/*
 Key.Name => name
 */
 func SecretDel(cfg *shared.Config, r shared.Request) {

@@ -1,4 +1,6 @@
 // Dictionary of functions used by the HTTP handler and admin client
+// Functions with a server component only are used internally but not called
+// directly by an admin.
 package dictionary
 
 import (
@@ -65,6 +67,7 @@ var Dictionary = map[string]APIFunc{
 	"/key/private/set/super":  SetSuperKey,
 
 	"/secret/create": SecretNew,
+	"/secret/get":    SecretGet,
 	"/secret/delete": SecretDel,
 	"/secret/update": SecretUpdate,
 
@@ -83,6 +86,7 @@ var Dictionary = map[string]APIFunc{
 
 var name = cli.StringFlag{Name: "name, n", Usage: "name"}
 var group = cli.StringFlag{Name: "group, g", Usage: "group name"}
+var secret = cli.StringFlag{Name: "secret, s", Usage: "secret name"}
 var file = cli.StringFlag{Name: "file, f", Usage: "filename"}
 var path = cli.StringFlag{Name: "path, f", Usage: "path secret will be saved at on clients"}
 var isadmin = cli.BoolFlag{Name: "admin, a", Usage: "applies to admins, not clients"}
@@ -287,6 +291,13 @@ var SecretNew = APIFunc{
 	Description:  "Add a new secret",
 }
 
+var SecretGet = APIFunc{
+	Serverfn:     server.SecretGet,
+	AuthRequired: true,
+	AdminOnly:    true,
+	Description:  "Download a secret",
+}
+
 var SecretDel = APIFunc{
 	Serverfn:     server.SecretDel,
 	Adminfn:      admin.SecretDel,
@@ -307,6 +318,8 @@ var SecretUpdate = APIFunc{
 
 var SecretAssignUser = APIFunc{
 	Serverfn:     server.SecretAssignUser,
+	Adminfn:      admin.SecretAssignUser,
+	Flags:        []cli.Flag{name, secret, isadmin},
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
@@ -315,6 +328,8 @@ var SecretAssignUser = APIFunc{
 
 var SecretAssignGroup = APIFunc{
 	Serverfn:     server.SecretAssignGroup,
+	Adminfn:      admin.SecretAssignGroup,
+	Flags:        []cli.Flag{name, secret},
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Assign a secret to a group",
