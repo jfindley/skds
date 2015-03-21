@@ -281,6 +281,8 @@ var SecretNew = APIFunc{
 
 var SecretDel = APIFunc{
 	Serverfn:     server.SecretDel,
+	Adminfn:      admin.SecretDel,
+	Flags:        []cli.Flag{name},
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Delete a secret",

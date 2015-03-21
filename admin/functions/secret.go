@@ -81,8 +81,6 @@ func SecretNew(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 	name := ctx.String("name")
 	file := ctx.String("file")
 
-	var msg shared.Message
-
 	if name == "" {
 		cfg.Log(log.ERROR, "Secret name is required")
 		return
@@ -93,6 +91,7 @@ func SecretNew(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 		return
 	}
 
+	var msg shared.Message
 	msg.Key.Name = name
 
 	superKey, err := superPubKey(cfg)
@@ -133,6 +132,26 @@ func SecretNew(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 	}
 
 	_, err = cfg.Session.Post(url, msg)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+
+	return true
+}
+
+func SecretDel(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
+	name := ctx.String("name")
+
+	if name == "" {
+		cfg.Log(log.ERROR, "Secret name is required")
+		return
+	}
+
+	var msg shared.Message
+	msg.Key.Name = name
+
+	_, err := cfg.Session.Post(url, msg)
 	if err != nil {
 		cfg.Log(log.ERROR, err)
 		return

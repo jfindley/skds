@@ -146,5 +146,28 @@ func TestSecretNew(t *testing.T) {
 	if !ok {
 		t.Fatal("Failed")
 	}
+}
 
+func TestSecretDel(t *testing.T) {
+	var exp shared.Message
+	exp.Key.Name = "test"
+
+	ts := testPost(exp, 200)
+	defer ts.Close()
+	cfg.Startup.Address = strings.TrimPrefix(ts.URL, "https://")
+
+	cfg.Session.New(cfg)
+
+	app := cli.NewApp()
+
+	fs := flag.NewFlagSet("testing", flag.PanicOnError)
+	name := fs.String("name", "", "")
+	*name = exp.Key.Name
+
+	ctx := cli.NewContext(app, fs, nil)
+
+	ok := SecretDel(cfg, ctx, "/test")
+	if !ok {
+		t.Fatal("Failed")
+	}
 }
