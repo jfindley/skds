@@ -251,6 +251,24 @@ var SecretList = APIFunc{
 	Description:  "list all secrets",
 }
 
+var SecretListUser = APIFunc{
+	Serverfn:     server.SecretListUser,
+	Adminfn:      admin.SecretListUser,
+	Flags:        []cli.Flag{name, isadmin},
+	AuthRequired: true,
+	AdminOnly:    true,
+	Description:  "List all secrets for a user",
+}
+
+var SecretListGroup = APIFunc{
+	Serverfn:     server.SecretListGroup,
+	Adminfn:      admin.SecretListUser,
+	Flags:        []cli.Flag{name, isadmin},
+	AuthRequired: true,
+	AdminOnly:    true,
+	Description:  "List all secrets for a group",
+}
+
 var SecretNew = APIFunc{
 	Serverfn:     server.SecretNew,
 	AuthRequired: true,
@@ -300,18 +318,4 @@ var SecretRemoveGroup = APIFunc{
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Remove a secret from a group",
-}
-
-var SecretListUser = APIFunc{
-	Serverfn:     server.SecretListUser,
-	AuthRequired: true,
-	AdminOnly:    true,
-	Description:  "List all secrets for a user",
-}
-
-var SecretListGroup = APIFunc{
-	Serverfn:     server.SecretListGroup,
-	AuthRequired: true,
-	AdminOnly:    true,
-	Description:  "List all secrets for a group",
 }
