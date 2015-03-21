@@ -132,3 +132,40 @@ func TestSecretPrivKey(t *testing.T) {
 		t.Fatal("Key does not match")
 	}
 }
+
+func TestSecretGet(t *testing.T) {
+	var err error
+	var resp shared.Message
+
+	secret := []byte("test data")
+	key := new(crypto.Key)
+	key.Generate()
+
+	resp.Key.Secret, err = crypto.Encrypt(secret, key, key)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	resp.Key.UserKey, err = crypto.Encrypt(key.Priv[:], cfg.Runtime.Keypair, cfg.Runtime.Keypair)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var exp shared.Message
+	exp.Key.Name = "test secret"
+
+	ts := testPost(exp, 200, resp)
+	defer ts.Close()
+	cfg.Startup.Address = strings.TrimPrefix(ts.URL, "https://")
+
+	cfg.Session.New(cfg)
+
+	data, err := secretGet(cfg, exp.Key.Name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if bytes.Compare(data, []byte("test data")) != 0 {
+		t.Error("Secret data does not match")
+	}
+}
