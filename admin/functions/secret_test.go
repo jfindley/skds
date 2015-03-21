@@ -287,10 +287,12 @@ func TestSecretAssignUser(t *testing.T) {
 	fs := flag.NewFlagSet("testing", flag.PanicOnError)
 	name := fs.String("name", "", "")
 	secret := fs.String("secret", "", "")
+	path := fs.String("path", "", "")
 	admin := fs.Bool("admin", false, "")
 
 	*name = "test user"
 	*secret = "test secret"
+	*path = ""
 	*admin = true
 
 	ctx := cli.NewContext(app, fs, nil)
@@ -355,10 +357,12 @@ func TestSecretAssignGroup(t *testing.T) {
 	fs := flag.NewFlagSet("testing", flag.PanicOnError)
 	name := fs.String("name", "", "")
 	secret := fs.String("secret", "", "")
+	path := fs.String("path", "", "")
 	admin := fs.Bool("admin", false, "")
 
 	*name = "test group"
 	*secret = "test secret"
+	*path = ""
 	*admin = true
 
 	ctx := cli.NewContext(app, fs, nil)

@@ -319,7 +319,7 @@ var SecretUpdate = APIFunc{
 var SecretAssignUser = APIFunc{
 	Serverfn:     server.SecretAssignUser,
 	Adminfn:      admin.SecretAssignUser,
-	Flags:        []cli.Flag{name, secret, isadmin},
+	Flags:        []cli.Flag{name, secret, isadmin, path},
 	AuthRequired: true,
 	AdminOnly:    true,
 	SuperOnly:    true,
@@ -329,7 +329,7 @@ var SecretAssignUser = APIFunc{
 var SecretAssignGroup = APIFunc{
 	Serverfn:     server.SecretAssignGroup,
 	Adminfn:      admin.SecretAssignGroup,
-	Flags:        []cli.Flag{name, secret, isadmin},
+	Flags:        []cli.Flag{name, secret, isadmin, path},
 	AuthRequired: true,
 	AdminOnly:    true,
 	Description:  "Assign a secret to a group",

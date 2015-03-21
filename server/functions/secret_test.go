@@ -412,6 +412,7 @@ func TestSecretAssignUser(t *testing.T) {
 	req, resp = respRecorder()
 	req.Session = session
 	req.Req.Key.Secret = []byte("test secret")
+	req.Req.Key.Path = "/tmp/test"
 
 	SecretAssignUser(cfg, req)
 	if resp.Code != 404 {
@@ -490,6 +491,7 @@ func TestSecretAssignGroup(t *testing.T) {
 	req.Req.User.Group = "test group"
 	req.Req.User.Admin = false
 	req.Req.Key.Name = "test secret"
+	req.Req.Key.Path = "/tmp/test"
 
 	group := new(db.Groups)
 	secret := new(db.MasterSecrets)
@@ -509,6 +511,7 @@ func TestSecretAssignGroup(t *testing.T) {
 	req.Req.User.Group = "test group"
 	req.Req.User.Admin = false
 	req.Req.Key.Name = "test secret"
+	req.Req.Key.Path = "/tmp/test"
 
 	secret.Name = req.Req.Key.Name
 

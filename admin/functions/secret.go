@@ -210,6 +210,7 @@ func SecretUpdate(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 func SecretAssignUser(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 	name := ctx.String("name")
 	secret := ctx.String("secret")
+	path := ctx.String("path")
 	admin := ctx.Bool("admin")
 
 	if name == "" {
@@ -222,10 +223,16 @@ func SecretAssignUser(cfg *shared.Config, ctx *cli.Context, url string) (ok bool
 		return
 	}
 
+	if !admin && path == "" {
+		cfg.Log(log.ERROR, "Path is required when assigning a secret to a client")
+		return
+	}
+
 	var msg shared.Message
 	msg.Key.Name = secret
 	msg.User.Name = name
 	msg.User.Admin = admin
+	msg.Key.Path = path
 
 	pubKey, err := userPubKey(cfg, name, admin)
 	if err != nil {
@@ -259,6 +266,7 @@ func SecretAssignUser(cfg *shared.Config, ctx *cli.Context, url string) (ok bool
 func SecretAssignGroup(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 	name := ctx.String("name")
 	secret := ctx.String("secret")
+	path := ctx.String("path")
 	admin := ctx.Bool("admin")
 
 	if name == "" {
@@ -271,10 +279,16 @@ func SecretAssignGroup(cfg *shared.Config, ctx *cli.Context, url string) (ok boo
 		return
 	}
 
+	if !admin && path == "" {
+		cfg.Log(log.ERROR, "Path is required when assigning a secret to a client")
+		return
+	}
+
 	var msg shared.Message
 	msg.Key.Name = secret
 	msg.User.Group = name
 	msg.User.Admin = admin
+	msg.Key.Path = path
 
 	pubKey, err := groupPubKey(cfg, name, admin)
 	if err != nil {

@@ -450,6 +450,7 @@ User.Name => user name
 User.Admin => admin/client user
 Key.Name => secret name
 Key.Secret => secret encoded with the public key of the target admin
+key.Path => secret path (non-admin users only)
 */
 func SecretAssignUser(cfg *shared.Config, r shared.Request) {
 	var err error
@@ -460,6 +461,10 @@ func SecretAssignUser(cfg *shared.Config, r shared.Request) {
 	if len(r.Req.Key.Secret) == 0 {
 		r.Reply(400, shared.RespMessage("No secret provided"))
 		return
+	}
+
+	if !r.Req.User.Admin && r.Req.Key.Path == "" {
+		r.Reply(400, shared.RespMessage("No path specified"))
 	}
 
 	q := cfg.DB.Where("name = ? and admin = ?", r.Req.User.Name, r.Req.User.Admin).First(&user)
@@ -499,6 +504,7 @@ func SecretAssignUser(cfg *shared.Config, r shared.Request) {
 	}
 	userSecret.SID = secret.Id
 	userSecret.UID = user.Id
+	userSecret.Path = r.Req.Key.Path
 
 	q = cfg.DB.Create(&userSecret)
 	if q.Error != nil {
@@ -516,6 +522,7 @@ User.Group => group name
 User.Admin => admin/client group
 Key.Name => secret name
 Key.Secret => secret encoded with the public key of the target group
+key.Path => secret path (non-admin group only)
 */
 func SecretAssignGroup(cfg *shared.Config, r shared.Request) {
 	var err error
@@ -526,6 +533,10 @@ func SecretAssignGroup(cfg *shared.Config, r shared.Request) {
 	if len(r.Req.Key.Secret) == 0 {
 		r.Reply(400, shared.RespMessage("No secret provided"))
 		return
+	}
+
+	if !r.Req.User.Admin && r.Req.Key.Path == "" {
+		r.Reply(400, shared.RespMessage("No path specified"))
 	}
 
 	q := cfg.DB.Where("name = ? and admin = ?", r.Req.User.Group, r.Req.User.Admin).First(&group)
@@ -560,6 +571,7 @@ func SecretAssignGroup(cfg *shared.Config, r shared.Request) {
 	}
 	groupSecret.SID = secret.Id
 	groupSecret.GID = group.Id
+	groupSecret.Path = r.Req.Key.Path
 
 	q = cfg.DB.Create(&groupSecret)
 	if q.Error != nil {
