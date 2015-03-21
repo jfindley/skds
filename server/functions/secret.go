@@ -449,7 +449,7 @@ func SecretUpdate(cfg *shared.Config, r shared.Request) {
 User.Name => user name
 User.Admin => admin/client user
 Key.Name => secret name
-Key.Secret => secret encoded with the public key of the target admin
+Key.Key => secret key encoded with the public key of the target user
 key.Path => secret path (non-admin users only)
 */
 func SecretAssignUser(cfg *shared.Config, r shared.Request) {
@@ -521,7 +521,7 @@ func SecretAssignUser(cfg *shared.Config, r shared.Request) {
 User.Group => group name
 User.Admin => admin/client group
 Key.Name => secret name
-Key.Secret => secret encoded with the public key of the target group
+Key.Key => secret key encoded with the public key of the target group
 key.Path => secret path (non-admin group only)
 */
 func SecretAssignGroup(cfg *shared.Config, r shared.Request) {
