@@ -1,9 +1,11 @@
 package db
 
 import (
+	"errors"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/gorm"
+	_ "github.com/mattn/go-sqlite3"
 	"strings"
 
 	"github.com/jfindley/skds/crypto"
@@ -213,14 +215,27 @@ var compoundIndexes = map[string][]string{
 
 func Connect(cfg shared.DBSettings) (db gorm.DB, err error) {
 	var uri string
-	if cfg.Host == "localhost" {
-		uri = fmt.Sprintf("%s:%s@/%s", cfg.User,
-			cfg.Pass, cfg.Database)
-	} else {
-		uri = fmt.Sprintf("%s:%s@(%s:%s)/%s", cfg.User,
-			cfg.Pass, cfg.Host, cfg.Port,
-			cfg.Database)
+
+	switch cfg.Driver {
+
+	case "mysql":
+		if cfg.Host == "localhost" {
+			uri = fmt.Sprintf("%s:%s@/%s", cfg.User,
+				cfg.Pass, cfg.Database)
+		} else {
+			uri = fmt.Sprintf("%s:%s@(%s:%s)/%s", cfg.User,
+				cfg.Pass, cfg.Host, cfg.Port,
+				cfg.Database)
+		}
+
+	case "sqlite3":
+		uri = cfg.File
+
+	default:
+		return db, errors.New("Invalid database driver. Currently supported: mysql, sqlite3")
+
 	}
+
 	db, err = gorm.Open(cfg.Driver, uri)
 	if err != nil {
 		return
@@ -282,7 +297,7 @@ func CreateDefaults(db gorm.DB) error {
 	if err != nil {
 		return err
 	}
-	admin := Users{GID: shared.SuperGID, Name: "Admin", Password: enc, Admin: true}
+	admin := Users{GID: shared.SuperGID, Name: "admin", Password: enc, Admin: true}
 
 	q = db.Create(&admin)
 	if q.Error != nil {

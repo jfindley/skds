@@ -3,7 +3,9 @@ package functions
 // This sets up the various common parts for the tests in this package
 
 import (
+	"fmt"
 	"net/http/httptest"
+	"os"
 
 	"github.com/jfindley/skds/server/auth"
 	"github.com/jfindley/skds/server/db"
@@ -23,8 +25,9 @@ func init() {
 
 	cfg.Startup.DB.Database = "skds_test"
 	cfg.Startup.DB.Host = "localhost"
+	cfg.Startup.DB.File = fmt.Sprintf("%s%s%s", os.TempDir(), string(os.PathSeparator), "skds_db_test")
 	cfg.Startup.DB.User = "root"
-	cfg.Startup.DB.Driver = "mysql"
+	cfg.Startup.DB.Driver = "sqlite3"
 
 	session.Name = "admin"
 	session.UID = 1

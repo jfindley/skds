@@ -65,6 +65,7 @@ type DBSettings struct {
 	Pass     string `toml:"Password"`
 	Database string
 	Driver   string
+	File     string
 }
 
 type StartupCrypto struct {

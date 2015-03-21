@@ -3,19 +3,17 @@ SKDS: Secure Key distribution system
 
 A system for securely distributing secret keys across a large number of systems.
 
-It's still missing some vital components in this public repo, however, so if you found this by accident - thanks for coming, and check back in a week or two.
-
 What is it for?
 -----
 
-SSL Keys.  Encrypted secrets for config management systems.  SSH keys.  Really, pretty much anything that needs to be distrubuted securely.
+TLS/SSL Keys.  Encrypted secrets for config management systems.  SSH keys.  Really, pretty much anything that needs to be distrubuted securely.
 
 What can it do?
 -----
 
 Fully fledged administration system, built to be used by both large and small teams.  Scales easily to large numbers of admins and servers.
 
-Fine-grained control over access - grant access to either individuals or groups of admins and clients.
+Fine-grained control over access - grant access to either individual or groups of admins and clients.
 
 Currently, we support Linux and OSX.  It may well work on Windows, but that's not (yet) tested.
 
@@ -24,7 +22,7 @@ How do I use it?
 
 SKDS has a three-part architecture.
 
-The server component holds the data in a database (currently MySQL, support for SQLite and Postgres coming soon).
+The server component holds the data in a database (sqlite and MySQL supported, Postgres could be added with little effort).
 
 The client component is installed on the servers you're distributing the keys to.  This is designed to be very easy to mass-deploy, and requires little local configuration.
 
