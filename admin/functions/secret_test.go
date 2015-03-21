@@ -254,11 +254,6 @@ func TestSecretAssignUser(t *testing.T) {
 
 	var secretResp shared.Message
 
-	secretResp.Key.Secret, err = crypto.Encrypt([]byte("test data"), key, key)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	secretResp.Key.UserKey, err = crypto.Encrypt(key.Priv[:], cfg.Runtime.Keypair, cfg.Runtime.Keypair)
 	if err != nil {
 		t.Fatal(err)
@@ -266,7 +261,7 @@ func TestSecretAssignUser(t *testing.T) {
 
 	secretReq := reqDef{
 		code:      200,
-		url:       "/secret/get",
+		url:       "/key/private/get/secret",
 		responses: []shared.Message{secretResp},
 	}
 
@@ -324,11 +319,6 @@ func TestSecretAssignGroup(t *testing.T) {
 
 	var secretResp shared.Message
 
-	secretResp.Key.Secret, err = crypto.Encrypt([]byte("test data"), key, key)
-	if err != nil {
-		t.Fatal(err)
-	}
-
 	secretResp.Key.UserKey, err = crypto.Encrypt(key.Priv[:], cfg.Runtime.Keypair, cfg.Runtime.Keypair)
 	if err != nil {
 		t.Fatal(err)
@@ -336,7 +326,7 @@ func TestSecretAssignGroup(t *testing.T) {
 
 	secretReq := reqDef{
 		code:      200,
-		url:       "/secret/get",
+		url:       "/key/private/get/secret",
 		responses: []shared.Message{secretResp},
 	}
 
