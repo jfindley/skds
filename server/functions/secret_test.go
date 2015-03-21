@@ -411,7 +411,7 @@ func TestSecretAssignUser(t *testing.T) {
 
 	req, resp = respRecorder()
 	req.Session = session
-	req.Req.Key.Secret = []byte("test secret")
+	req.Req.Key.Key = []byte("test secret")
 	req.Req.Key.Path = "/tmp/test"
 
 	SecretAssignUser(cfg, req)
@@ -421,7 +421,7 @@ func TestSecretAssignUser(t *testing.T) {
 
 	req, resp = respRecorder()
 	req.Session = session
-	req.Req.Key.Secret = []byte("test secret")
+	req.Req.Key.Key = []byte("test secret")
 	req.Req.User.Name = "test user"
 	req.Req.User.Admin = true
 	req.Req.Key.Name = "test secret"
@@ -442,7 +442,7 @@ func TestSecretAssignUser(t *testing.T) {
 
 	req, resp = respRecorder()
 	req.Session = session
-	req.Req.Key.Secret = []byte("test secret")
+	req.Req.Key.Key = []byte("test secret")
 	req.Req.User.Name = "test user"
 	req.Req.User.Admin = true
 	req.Req.Key.Name = "test secret"
@@ -454,7 +454,7 @@ func TestSecretAssignUser(t *testing.T) {
 
 	req, resp = respRecorder()
 	req.Session = session
-	req.Req.Key.Secret = []byte("test secret")
+	req.Req.Key.Key = []byte("test secret")
 	req.Req.User.Name = "test user"
 	req.Req.User.Admin = true
 	req.Req.Key.Name = "test secret"
@@ -487,7 +487,7 @@ func TestSecretAssignGroup(t *testing.T) {
 
 	req, resp = respRecorder()
 	req.Session = session
-	req.Req.Key.Secret = []byte("test secret")
+	req.Req.Key.Key = []byte("test secret")
 	req.Req.User.Group = "test group"
 	req.Req.User.Admin = false
 	req.Req.Key.Name = "test secret"
@@ -507,7 +507,7 @@ func TestSecretAssignGroup(t *testing.T) {
 
 	req, resp = respRecorder()
 	req.Session = session
-	req.Req.Key.Secret = []byte("test secret")
+	req.Req.Key.Key = []byte("test secret")
 	req.Req.User.Group = "test group"
 	req.Req.User.Admin = false
 	req.Req.Key.Name = "test secret"

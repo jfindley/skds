@@ -458,8 +458,8 @@ func SecretAssignUser(cfg *shared.Config, r shared.Request) {
 	var secret db.MasterSecrets
 	var userSecret db.UserSecrets
 
-	if len(r.Req.Key.Secret) == 0 {
-		r.Reply(400, shared.RespMessage("No secret provided"))
+	if len(r.Req.Key.Key) == 0 {
+		r.Reply(400, shared.RespMessage("No key provided"))
 		return
 	}
 
@@ -497,7 +497,7 @@ func SecretAssignUser(cfg *shared.Config, r shared.Request) {
 		return
 	}
 
-	userSecret.Secret, err = crypto.NewBinary(r.Req.Key.Secret).Encode()
+	userSecret.Secret, err = crypto.NewBinary(r.Req.Key.Key).Encode()
 	if err != nil {
 		cfg.Log(log.ERROR, err)
 		r.Reply(500)
@@ -530,8 +530,8 @@ func SecretAssignGroup(cfg *shared.Config, r shared.Request) {
 	var secret db.MasterSecrets
 	var groupSecret db.GroupSecrets
 
-	if len(r.Req.Key.Secret) == 0 {
-		r.Reply(400, shared.RespMessage("No secret provided"))
+	if len(r.Req.Key.Key) == 0 {
+		r.Reply(400, shared.RespMessage("No key provided"))
 		return
 	}
 
@@ -564,7 +564,7 @@ func SecretAssignGroup(cfg *shared.Config, r shared.Request) {
 		return
 	}
 
-	groupSecret.Secret, err = crypto.NewBinary(r.Req.Key.Secret).Encode()
+	groupSecret.Secret, err = crypto.NewBinary(r.Req.Key.Key).Encode()
 	if err != nil {
 		cfg.Log(log.ERROR, err)
 		r.Reply(500)
