@@ -37,5 +37,18 @@ func SetSuperKey(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 		return
 	}
 
+	cfg.Log(log.DEBUG, "Logging out to update session with new key")
+	err = cfg.Session.Logout(cfg)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+	err = cfg.Session.Login(cfg)
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
+	cfg.Log(log.DEBUG, "Logged in")
+
 	return true
 }
