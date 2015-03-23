@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/codegangsta/cli"
+	"os/user"
 	"testing"
 
 	"github.com/jfindley/skds/dictionary"
@@ -56,8 +57,13 @@ func TestCommandTree(t *testing.T) {
 }
 
 func TestCommandSplitter(t *testing.T) {
-	input := `arg1     arg2 "arg 3" arg\"4`
-	expected := []string{appname, "arg1", "arg2", "arg 3", "arg\"4"}
+	usr, err := user.Current()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	input := `arg1     arg2 "arg 3" arg\"4 ~/arg5`
+	expected := []string{appname, "arg1", "arg2", "arg 3", "arg\"4", usr.HomeDir + "/arg5"}
 
 	out := commandSplitter(input)
 

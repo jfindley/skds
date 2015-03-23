@@ -5,6 +5,7 @@ import (
 	"github.com/codegangsta/cli"
 	"os"
 	"os/signal"
+	"os/user"
 	"strings"
 	"syscall"
 
@@ -14,6 +15,16 @@ import (
 )
 
 const appname string = "SKDS"
+
+var usr *user.User
+
+func init() {
+	usr, err := user.Current()
+	if err != nil {
+		panic(err)
+	}
+
+}
 
 func startCli(cfg *shared.Config, ctx *cli.Context) {
 	var err error
@@ -201,6 +212,10 @@ func commandSplitter(in string) (out []string) {
 		}
 
 		prev = in[i]
+
+		if in[i] == '~' {
+			out = append(out, usr.HomeDir)
+		}
 
 		if in[i] == '"' || in[i] == '\'' {
 			if !isInQuote {
