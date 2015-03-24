@@ -19,7 +19,8 @@ const appname string = "SKDS"
 var usr *user.User
 
 func init() {
-	usr, err := user.Current()
+	var err error
+	usr, err = user.Current()
 	if err != nil {
 		panic(err)
 	}
@@ -195,6 +196,7 @@ func commandSplitter(in string) (out []string) {
 	var prev uint8
 	var word string
 	var isInQuote bool
+	var singleQuote bool
 
 	for i := 0; i < len(in); i++ {
 
@@ -213,33 +215,53 @@ func commandSplitter(in string) (out []string) {
 
 		prev = in[i]
 
-		if in[i] == '~' {
-			out = append(out, usr.HomeDir)
-		}
+		switch in[i] {
 
-		if in[i] == '"' || in[i] == '\'' {
+		case '~':
+			if !singleQuote {
+				word = word + usr.HomeDir
+			}
+
+		case '"':
 			if !isInQuote {
 				isInQuote = true
-				continue
-			} else {
+			} else if !singleQuote {
 				isInQuote = false
 				out = append(out, word)
 				word = ""
-				continue
+			} else {
+				word = word + string(in[i])
 			}
-		}
-		if in[i] == ' ' && !isInQuote {
-			// Skip multiple spaces
-			if len(word) == 0 {
-				continue
+
+		case '\'':
+			if !isInQuote {
+				isInQuote = true
+				singleQuote = true
+			} else if singleQuote {
+				isInQuote = false
+				out = append(out, word)
+				word = ""
+			} else {
+				word = word + string(in[i])
 			}
-			out = append(out, word)
-			word = ""
-			continue
+
+		case ' ':
+			if !isInQuote && len(word) > 0 {
+				// Wordsplit
+				out = append(out, word)
+				word = ""
+			} else if isInQuote {
+				word = word + string(in[i])
+			}
+
+		default:
+			word = word + string(in[i])
+
 		}
-		word = word + string(in[i])
 
 	}
-	out = append(out, word)
+	if len(word) > 0 {
+		out = append(out, word)
+	}
 	return
 }

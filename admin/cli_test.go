@@ -62,8 +62,8 @@ func TestCommandSplitter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	input := `arg1     arg2 "arg 3" arg\"4 ~/arg5`
-	expected := []string{appname, "arg1", "arg2", "arg 3", "arg\"4", usr.HomeDir + "/arg5"}
+	input := `arg1     arg2 "arg 3" arg\"4 ~/arg5 'arg " 6'`
+	expected := []string{appname, "arg1", "arg2", "arg 3", "arg\"4", usr.HomeDir + "/arg5", "arg \" 6"}
 
 	out := commandSplitter(input)
 
