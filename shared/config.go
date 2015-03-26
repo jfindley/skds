@@ -88,7 +88,27 @@ func (c *Config) Encode() ([]byte, error) {
 // Decode reads TOML data into the startup part of a config tree.
 func (c *Config) Decode(data []byte) error {
 	_, err := toml.Decode(string(data), &c.Startup)
+
+	// Hande relative paths
+	c.Startup.Crypto.Cert = c.setPath(c.Startup.Crypto.Cert)
+	c.Startup.Crypto.Key = c.setPath(c.Startup.Crypto.Key)
+	c.Startup.Crypto.CACert = c.setPath(c.Startup.Crypto.CACert)
+	c.Startup.Crypto.CAKey = c.setPath(c.Startup.Crypto.CAKey)
+	c.Startup.Crypto.KeyPair = c.setPath(c.Startup.Crypto.KeyPair)
+	c.Startup.Crypto.ServerCert = c.setPath(c.Startup.Crypto.ServerCert)
+	c.Startup.Crypto.Password = c.setPath(c.Startup.Crypto.Password)
+	c.Startup.DB.File = c.setPath(c.Startup.DB.File)
+
 	return err
+}
+
+// setPath currently just prepends Config.Startup.Dir to path if path
+// is not absolute.
+func (c *Config) setPath(path string) string {
+	if len(path) > 0 && path[0] != '/' {
+		return c.Startup.Dir + "/" + path
+	}
+	return path
 }
 
 // NewServer allocates all objects used by the server
