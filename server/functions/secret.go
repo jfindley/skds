@@ -478,7 +478,7 @@ func SecretAssignUser(cfg *shared.Config, r shared.Request) {
 	}
 
 	if user.GID == shared.SuperGID {
-		r.Reply(400, shared.RespMessage("Cannot assign a key to a superuser"))
+		r.Reply(403, shared.RespMessage("Cannot assign a key to a superuser"))
 		return
 	}
 
@@ -537,6 +537,14 @@ func SecretAssignGroup(cfg *shared.Config, r shared.Request) {
 
 	if !r.Req.User.Admin && r.Req.Key.Path == "" {
 		r.Reply(400, shared.RespMessage("No path specified"))
+	}
+
+	if r.Req.User.Admin && r.Req.User.Group == "super" {
+		r.Reply(403, shared.RespMessage("Cannot assign a secret to the super group"))
+	}
+
+	if r.Req.User.Group == "default" {
+		r.Reply(403, shared.RespMessage("Cannot assign a secret to default groups"))
 	}
 
 	q := cfg.DB.Where("name = ? and admin = ?", r.Req.User.Group, r.Req.User.Admin).First(&group)

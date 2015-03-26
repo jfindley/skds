@@ -433,7 +433,7 @@ func TestSecretAssignUser(t *testing.T) {
 	cfg.DB.Create(user)
 
 	SecretAssignUser(cfg, req)
-	if resp.Code != 400 {
+	if resp.Code != 403 {
 		t.Error("Bad response code:", resp.Code)
 	}
 
