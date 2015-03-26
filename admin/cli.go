@@ -27,7 +27,7 @@ func init() {
 
 }
 
-func startCli(cfg *shared.Config, ctx *cli.Context) {
+func startCli(cfg *shared.Config) {
 	var err error
 
 	sigs := make(chan os.Signal, 1)

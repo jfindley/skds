@@ -80,11 +80,19 @@ func startup(cfg *shared.Config, ctx *cli.Context) {
 				"Please consider configuring a ServerCert location.")
 		}
 
-		pass, err := gopass.GetPass("Please enter your password:\n")
-		if err != nil {
-			cfg.Fatal(err)
+		if ctx.GlobalString("password") == "" {
+
+			pass, err := gopass.GetPass("Please enter your password:\n")
+			if err != nil {
+				cfg.Fatal(err)
+			}
+			cfg.Runtime.Password = []byte(pass)
+
+		} else {
+
+			cfg.Runtime.Password = []byte(ctx.GlobalString("password"))
+
 		}
-		cfg.Runtime.Password = []byte(pass)
 
 		cfg.Session.New(cfg)
 
@@ -137,6 +145,10 @@ func main() {
 			Usage: "Path to store configuration and secret keys",
 			Value: usr.HomeDir + "/.skds",
 		},
+		cli.StringFlag{
+			Name:  "password, p",
+			Usage: "Password for use in non-interactive mode",
+		},
 	}
 
 	main.Before = func(ctx *cli.Context) error {
@@ -145,7 +157,7 @@ func main() {
 	}
 
 	main.Action = func(ctx *cli.Context) {
-		startCli(cfg, ctx)
+		startCli(cfg)
 	}
 
 	err = main.Run(os.Args)
