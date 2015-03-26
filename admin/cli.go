@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/signal"
 	"os/user"
+	"sort"
 	"strings"
 	"syscall"
 
@@ -66,10 +67,17 @@ func commandTree(cfg *shared.Config, dict map[string]dictionary.APIFunc) *cli.Ap
 	app.Name = appname
 	app.Usage = "Admin console"
 
-	for url, a := range dict {
+	var urls []string
+	for url := range dict {
+		urls = append(urls, url)
+	}
+
+	sort.Strings(urls)
+
+	for _, url := range urls {
 
 		// Copy this reference so it does not get overwritten
-		api := a
+		api := dict[url]
 
 		// We're only interested if an admin function exists
 		if api.Adminfn == nil {
