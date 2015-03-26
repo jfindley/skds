@@ -121,22 +121,12 @@ func TestGetSecrets(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	enc, err := master.Encode()
+	groupSec, err := crypto.Encrypt(master.Priv[:], super, group)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	groupSec, err := crypto.Encrypt(enc, super, group)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	grpenc, err := group.Encode()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	userKey, err := crypto.Encrypt(grpenc, super, cfg.Runtime.Keypair)
+	userKey, err := crypto.Encrypt(group.Priv[:], super, cfg.Runtime.Keypair)
 	if err != nil {
 		t.Fatal(err)
 	}

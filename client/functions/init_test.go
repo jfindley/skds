@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"reflect"
 
+	"github.com/jfindley/skds/log"
 	"github.com/jfindley/skds/shared"
 )
 
@@ -13,6 +14,9 @@ var cfg *shared.Config
 
 func init() {
 	cfg = new(shared.Config)
+
+	cfg.Startup.LogLevel = log.WARN
+	cfg.StartLogging()
 }
 
 func testPost(expected shared.Message, code int, responses ...shared.Message) (ts *httptest.Server) {
