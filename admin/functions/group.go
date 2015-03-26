@@ -128,7 +128,7 @@ func UserGroupAssign(cfg *shared.Config, ctx *cli.Context, url string) (ok bool)
 	}
 
 	msg.User.Admin = admin
-	msg.User.Group = group
+	msg.User.Name = name
 	msg.User.Group = group
 
 	_, err = cfg.Session.Post(url, msg)
