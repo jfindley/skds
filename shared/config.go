@@ -12,7 +12,7 @@ import (
 
 const (
 	// Software versin
-	Version = "0.1-HEAD"
+	Version = "0.1.0"
 	// DefClientGID is the default client group ID
 	DefClientGID = 1
 	// DefAdminGID is the default admin group ID
@@ -98,6 +98,7 @@ func (c *Config) Decode(data []byte) error {
 	c.Startup.Crypto.ServerCert = c.setPath(c.Startup.Crypto.ServerCert)
 	c.Startup.Crypto.Password = c.setPath(c.Startup.Crypto.Password)
 	c.Startup.DB.File = c.setPath(c.Startup.DB.File)
+	c.Startup.LogFile = c.setPath(c.Startup.LogFile)
 
 	return err
 }

@@ -11,7 +11,7 @@ dirList=(
     "./server/functions"
     "./shared"
     "./log"
-    )
+)
 
 runTests() {
     pushd $1 > /dev/null

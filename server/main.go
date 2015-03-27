@@ -1,4 +1,6 @@
-// The server component
+// +build linux darwin
+// +build 386
+
 package main
 
 import (

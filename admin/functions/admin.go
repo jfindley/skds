@@ -1,8 +1,10 @@
 package functions
 
 import (
+	"bufio"
 	"code.google.com/p/gopass"
 	"github.com/codegangsta/cli"
+	"os"
 
 	"github.com/jfindley/skds/crypto"
 	"github.com/jfindley/skds/log"
@@ -10,17 +12,45 @@ import (
 )
 
 func Password(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
-	for {
-		newPass, err := gopass.GetPass("Please enter a new password:\n")
-		if err != nil {
-			cfg.Log(log.ERROR, err)
-			return
-		}
+	fi, err := os.Stdin.Stat()
+	if err != nil {
+		cfg.Log(log.ERROR, err)
+		return
+	}
 
-		confirm, err := gopass.GetPass("Please enter the password again:\n")
-		if err != nil {
-			cfg.Log(log.ERROR, err)
-			return
+	for {
+
+		var newPass string
+		var confirm string
+
+		if (fi.Mode() & os.ModeCharDevice) == 0 {
+
+			// STDIN is not a terminal, do not use gopass
+
+			reader := bufio.NewReader(os.Stdin)
+			cfg.Log(log.INFO, "Please enter a new password:")
+			newPass, _ = reader.ReadString('\n')
+
+			cfg.Log(log.INFO, "Please enter the password again:")
+
+			confirm, _ = reader.ReadString('\n')
+
+		} else {
+
+			// STDIN is a terminal, use gopass to hide input
+
+			newPass, err = gopass.GetPass("Please enter a new password:\n")
+			if err != nil {
+				cfg.Log(log.ERROR, err)
+				return
+			}
+
+			confirm, err = gopass.GetPass("Please enter the password again:\n")
+			if err != nil {
+				cfg.Log(log.ERROR, err)
+				return
+			}
+
 		}
 
 		if newPass != confirm {
@@ -45,7 +75,7 @@ func Password(cfg *shared.Config, ctx *cli.Context, url string) (ok bool) {
 	var msg shared.Message
 	msg.User.Password = cfg.Runtime.Password
 
-	_, err := cfg.Session.Post(url, msg)
+	_, err = cfg.Session.Post(url, msg)
 	if err != nil {
 		cfg.Log(log.ERROR, err)
 		return
